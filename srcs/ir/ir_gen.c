@@ -1,0 +1,130 @@
+#include "ir.h"
+#include <stdlib.h>
+
+static void emit(Arena *a, IRFunction *f, IRInstruction inst)
+{
+	if (f->tail == NULL || f->tail->count >= IR_CHUNK_SIZE)
+	{
+		IRChunk *new_chunk = arena_alloc(a, sizeof(IRChunk));
+		*new_chunk = (IRChunk){0};
+		if (f->tail)
+			f->tail->next = new_chunk;
+		else
+			f->head = new_chunk;
+		f->tail = new_chunk;
+	}
+
+	f->tail->instructions[f->tail->count] = inst;
+	f->tail->count++;
+	f->total_count++;
+}
+
+static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symtab)
+{
+	if (!node)
+		return (0);
+	if (node->type == AST_IDENTIFIER)
+	{
+        Symbol *sym = symtab_lookup(symtab, node->identifier.name);
+        if (!sym)
+		{
+            fprintf(stderr, "Undefined variable\n");
+            return (0);
+        }
+        return (sym->vreg);
+    }
+    
+	if (node->type == AST_NUMBER)
+	{
+		size_t reg = f->vreg_count++;
+		int64_t val = atoll(node->number.value.start);
+		IRInstruction inst = {
+			.opcode = IR_CONST,
+			.dest = reg,
+			.imm = val
+		};
+		emit(a, f, inst);
+		return (reg);
+	}
+
+	if (node->type >= AST_ADD && node->type <= AST_DIV)
+	{
+		size_t left = gen_expression(a, f, node->binary.left, symtab);
+		size_t right = gen_expression(a, f, node->binary.right, symtab);
+		size_t dest = f->vreg_count++;
+		IRInstruction inst = { .dest = dest, .src_1 = left, .src_2 = right };
+
+		switch (node->type)
+		{
+			case AST_ADD: inst.opcode = IR_ADD; break;
+			case AST_SUB: inst.opcode = IR_SUB; break;
+			case AST_MUL: inst.opcode = IR_MUL; break;
+			case AST_DIV: inst.opcode = IR_DIV; break;
+			default: break;
+		}
+		emit(a, f, inst);
+		return (dest);
+	}
+
+	if (node->type == AST_NEGATE)
+	{
+		size_t operand = gen_expression(a, f, node->unary.operand, symtab);
+		size_t dest = f->vreg_count++;
+		IRInstruction inst = { .opcode = IR_NEG, .dest = dest, .src_1 = operand };
+		emit(a, f, inst);
+		return (dest);
+	}
+	return (0);
+}
+
+static void gen_statement(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symtab, size_t *last_reg)
+{
+	if (!node)
+		return;
+	if (node->type == AST_VAR_DECL)
+	{
+		// int x = <expr>;
+		size_t init_reg = gen_expression(a, f, node->var_decl.initializer, symtab);
+		symtab_add(symtab, node->var_decl.var_name, init_reg);
+		*last_reg = init_reg;
+		return;
+	}
+	if (node->type == AST_RETURN)
+	{
+		size_t ret_reg = gen_expression(a, f, node->return_stmt.expression, symtab);
+		IRInstruction ret = { .opcode = IR_RET, .src_1 = ret_reg };
+		emit(a, f, ret);
+		return;
+	}
+
+	*last_reg = gen_expression(a, f, node, symtab);
+}
+
+IRFunction *ir_gen(Arena *a, ASTNode *root)
+{
+	if (!root)
+		return (NULL);
+
+	IRFunction *f = arena_alloc(a, sizeof(IRFunction));
+	f->vreg_count = 0;
+	f->total_count = 0;
+	f->head = NULL;
+	f->tail = NULL;
+
+	SymbolTable symtab = {0};
+	size_t result_reg = 0;
+
+	if (root->type == AST_BLOCK)
+	{
+		for (size_t i = 0; i < root->block.count; ++i)
+			gen_statement(a, f, root->block.statements[i], &symtab, &result_reg);
+	}
+	else
+	{
+		result_reg = gen_expression(a, f, root, &symtab);
+		IRInstruction ret = { .opcode = IR_RET, .src_1 = result_reg };
+		emit(a, f, ret);
+	}
+
+	return (f);
+}
