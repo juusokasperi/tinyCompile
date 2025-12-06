@@ -1,3 +1,4 @@
 tinyCompile
 objs/
 deps/
+.DS_Store
