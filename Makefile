@@ -33,7 +33,7 @@ CC = cc
 CFLAGS += -Wall -Wextra -Werror -MMD -MP $(INCS) $(ARCH_FLAGS)
 ARCH_FLAGS = -arch x86_64
 
-NAME = tinycompile
+NAME = tinyCompile
 
 $(OBJS_DIR)%.o: $(SRCS_DIR)%.c
 	@mkdir -p $(dir $@) $(dir $(DEPS_DIR)$*)
