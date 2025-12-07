@@ -55,13 +55,14 @@ typedef struct {
 	const char	*end;
 	int 		line;
 	int 		column;
+	FileMap		*file;
 } Lexer;
 
 /* =================== */
 /* FUNCTION PROTOTYPES */
 /* =================== */
 
-void	lexer_init(Lexer *l, const char *src, size_t len);
+void	lexer_init(Lexer *l, FileMap *file);
 Token	lexer_next(Lexer *l);
 char	peek(Lexer *l);
 char	peek_next(Lexer *l);

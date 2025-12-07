@@ -7,11 +7,12 @@
 
 static inline bool is_comment(Lexer *l);
 
-void lexer_init(Lexer *l, const char *src, size_t len)
+void lexer_init(Lexer *l, FileMap *file)
 {
-	l->start = src;
-	l->curr = src;
-	l->end = src + len;
+	l->file = file;
+	l->start = file->data;
+	l->curr = file->data;
+	l->end = file->data + file->length;
 	l->line = 1;
 	l->column = 1;
 }

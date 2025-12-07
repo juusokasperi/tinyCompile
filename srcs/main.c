@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 	Arena jit_arena = arena_init(PROT_READ | PROT_WRITE);
 
 	Lexer lexer;
-    lexer_init(&lexer, file.data, file.length);
+    lexer_init(&lexer, &file);
 	
 	ASTNode *root = parse(&lexer, &ast_arena);
 	if (!root)
