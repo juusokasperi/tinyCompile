@@ -9,6 +9,14 @@
 #include <stdio.h>
 #include <errno.h>
 
+static int handle_cleanup(Arena *ast_arena, Arena *jit_arena, FileMap *file)
+{
+		arena_free(ast_arena);
+		arena_free(jit_arena);
+		munmap((void *)file->data, file->length);
+		return (1);
+}
+
 // Messy main just used for testing
 int main(int argc, char **argv)
 {
@@ -30,7 +38,7 @@ int main(int argc, char **argv)
 	
 	ASTNode *root = parse(&lexer, &ast_arena);
 	if (!root)
-		return (1);
+		return handle_cleanup(&ast_arena, &jit_arena, &file);
 	
 	printf("\n--- AST Structure ---\n");
     print_ast(root, 0);
@@ -46,7 +54,7 @@ int main(int argc, char **argv)
 		if (!arena_set_prot(&jit_arena, PROT_READ | PROT_EXEC))
 		{
 			perror("Failed to set executable permissions");
-			return (1);
+			return handle_cleanup(&ast_arena, &jit_arena, &file);
 		}
 		printf("\n--- EXECUTION ---\n");
 		JITFunc func = (JITFunc)jit.code;
@@ -54,8 +62,6 @@ int main(int argc, char **argv)
 		printf("Result: %lld\n", result);
 	}
 
-	munmap((void *)file.data, file.length);
-    arena_free(&ast_arena);
-	arena_free(&jit_arena);
+	handle_cleanup(&ast_arena, &jit_arena, &file);
 	return (0);
 }
