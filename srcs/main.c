@@ -19,7 +19,8 @@ int main(int argc, char **argv)
 	FileMap file;
 	if (!parse_input(argv, &file))
 		return (1);
-	printf("File contents: \n%.*s\n", (int)file.length, file.data);
+	
+	print_file(&file);
 
 	Arena ast_arena = arena_init(PROT_READ | PROT_WRITE);
 	Arena jit_arena = arena_init(PROT_READ | PROT_WRITE);
@@ -31,8 +32,9 @@ int main(int argc, char **argv)
 	if (!root)
 		return (1);
 	
-	printf("--- AST Structure ---\n");
+	printf("\n--- AST Structure ---\n");
     print_ast(root, 0);
+	printf("\n");
 
 	IRFunction *ir = ir_gen(&jit_arena, root);
 	ir_print(ir);

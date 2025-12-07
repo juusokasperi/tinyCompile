@@ -107,3 +107,21 @@ void print_ast(ASTNode *node, int indent)
 	}
 }
 
+void print_file(FileMap *file)
+{
+	if (!file->data)
+		return;
+	printf("--- File contents ---\n");
+	size_t line = 0;
+	for (size_t i = 0; i < file->length; ++i)
+	{
+		printf("%4zu | ", line);
+		while (i < file->length && file->data[i] != '\n')
+		{
+			printf("%c", file->data[i]);
+			i++;
+		}
+		line++;
+		printf("\n");
+	}
+}

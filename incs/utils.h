@@ -16,5 +16,6 @@ int safe_open(char *file);
 FileMap map_input(int fd);
 bool parse_input(char **argv, FileMap *out_file);
 void print_ast(ASTNode *node, int indent);
+void print_file(FileMap *file);
 
 #endif
