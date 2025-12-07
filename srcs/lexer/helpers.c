@@ -96,3 +96,24 @@ static inline bool is_comment(Lexer *l)
 	}
 	return (result);
 }
+
+Token	make_token(Lexer *l, TokenType type, StringView text)
+{
+	Token result = {
+		.type = type,
+		.text = text,
+		.line = l->line,
+		.column = l->column 
+	};
+	return (result);
+}
+
+Token	make_token_no_sv(Lexer *l, TokenType type)
+{
+	Token result = {
+		.type = type,
+		.line = l->line,
+		.column = l->column 
+	};
+	return (result);
+}

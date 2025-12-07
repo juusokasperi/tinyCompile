@@ -61,11 +61,13 @@ typedef struct {
 /* FUNCTION PROTOTYPES */
 /* =================== */
 
-void lexer_init(Lexer *l, const char *src, size_t len);
-Token lexer_next(Lexer *l);
-char peek(Lexer *l);
-char peek_next(Lexer *l);
-char advance(Lexer *l);
-void skip_whitespace(Lexer *l);
+void	lexer_init(Lexer *l, const char *src, size_t len);
+Token	lexer_next(Lexer *l);
+char	peek(Lexer *l);
+char	peek_next(Lexer *l);
+char	advance(Lexer *l);
+void	skip_whitespace(Lexer *l);
+Token	make_token(Lexer *l, TokenType type, StringView text);
+Token	make_token_no_sv(Lexer *l, TokenType type);
 
 #endif

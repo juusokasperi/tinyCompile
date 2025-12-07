@@ -1,22 +1,11 @@
 #include "lexer.h"
 
-static Token	make_token(Lexer *l, TokenType type, StringView text)
-{
-	Token result = {
-		.type = type,
-		.text = text,
-		.line = l->line,
-		.column = l->column 
-	};
-	return (result);
-}
-
 Token lexer_next(Lexer *l)
 {
 	skip_whitespace(l);
 
 	if (l->curr >= l->end)
-		return (Token){.type = TOKEN_EOF, .line = l->line, .column = l->column};
+		return (make_token_no_sv(l, TOKEN_EOF));
 
 	char c = *l->curr;
 	if (isdigit(c))
@@ -67,23 +56,23 @@ Token lexer_next(Lexer *l)
 			if (peek(l) == '=')
 			{
 				advance(l);
-				return (Token){.type = TOKEN_EQUAL_EQUAL, .line = l->line};
+				return (make_token_no_sv(l, TOKEN_EQUAL_EQUAL));
 			}
-			return (Token){.type = TOKEN_EQUAL, .line = l->line};
+			return (make_token_no_sv(l, TOKEN_EQUAL));
 		case '>':
 			if (peek(l) == '=')
 			{
 				advance(l);
-				return (Token){.type = TOKEN_GREATER_EQUAL, .line = l->line};
+				return (make_token_no_sv(l, TOKEN_GREATER_EQUAL));
 			}
-			return (Token){.type = TOKEN_GREATER, .line = l->line};
+			return (make_token_no_sv(l, TOKEN_GREATER));
 		case '<':
 			if (peek(l) == '=')
 			{
 				advance(l); 
-				return (Token){.type = TOKEN_LESS_EQUAL, .line = l->line};
+				return (make_token_no_sv(l, TOKEN_LESS_EQUAL));
 			}
-			return (Token){.type = TOKEN_LESS, .line = l->line};
-		default:  return (Token){.type = TOKEN_ERROR, .line = l->line};
+			return (make_token_no_sv(l, TOKEN_LESS));
+		default:  return (make_token_no_sv(l, TOKEN_ERROR));
 	}
 }
