@@ -13,7 +13,7 @@ DIR_IR = ir/
 SRCS_JIT = jit.c
 DIR_JIT = jit/
 
-SRCS = main.c
+SRCS = main.c utils.c
 SRCS += $(addprefix $(DIR_LEXER), $(SRCS_LEXER)) \
 		$(addprefix $(DIR_MEMARENA), $(SRCS_MEMARENA)) \
 		$(addprefix $(DIR_PARSER), $(SRCS_PARSER)) \
