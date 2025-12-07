@@ -11,6 +11,16 @@ static ASTNode	*parse_statement(Parser *p);
 static ASTNode	*parse_block(Parser *p);
 static ASTNode	*parse_function(Parser *p);
 
+static void report_error(Parser *p, const char *msg)
+{
+	const char *filename = p->lexer->file->name;
+    int line = p->current.line;
+    int col = p->current.column;
+    
+    fprintf(stderr, "%s:%d:%d: error: %s\n", 
+            filename, line, col, msg);
+}
+
 static void	p_advance(Parser *p)
 {
 	p->current = p->next;
@@ -29,7 +39,7 @@ static void	consume(Parser *p, TokenType type, const char *message)
 		p_advance(p);
 		return;
 	}
-	fprintf(stderr, "Error: %s on line %d, col %d\n", message, p->lexer->line, p->lexer->column);
+	report_error(p, message);
 }
 
 static bool inline match(Parser *p, TokenType type)
@@ -141,8 +151,7 @@ static ASTNode	*parse_prefix(Parser *p)
 		case TOKEN_LPAREN:		return (parse_grouping(p));
 		case TOKEN_MINUS:		return (parse_unary(p));
 		default:
-			fprintf(stderr, "Expect expression at line %d (Token %.*s).\n",
-					p->current.line, (int)p->current.text.len, p->current.text.start);
+			report_error(p, "Expect expression");
 			return (NULL);
 	}
 }
