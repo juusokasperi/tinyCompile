@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 {
 	(void) argc; // void for now
 				 // also for future argv++ to skip program name and start from the file(s)
-	argv[0] = "simple_test.txt";
+	argv[0] = "test.txt";
 
 	FileMap file;
 	if (!parse_input(argv, &file))

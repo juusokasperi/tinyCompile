@@ -1,3 +1,8 @@
+/**
+ * @file
+ * @brief Helper functions for lexer
+ */
+
 #include "lexer.h"
 
 static inline bool is_comment(Lexer *l);
@@ -11,6 +16,13 @@ void lexer_init(Lexer *l, const char *src, size_t len)
 	l->column = 1;
 }
 
+
+/**
+ * @brief Looks at the next char in the file we are tokenizing without advancing
+ *
+ * @param l 
+ * @return next character	
+ */
 char peek(Lexer *l)
 {
 	if (l->curr >= l->end)
@@ -18,6 +30,11 @@ char peek(Lexer *l)
 	return (*l->curr);
 }
 
+/**
+ * @brief Looks at the char + 2 in the file we are tokenizing without advancing
+ *
+ * @param l 
+ */
 char peek_next(Lexer *l)
 {
 	if (l->curr + 1 >= l->end)
@@ -32,6 +49,11 @@ char advance(Lexer *l)
 	return l->curr[-1];
 }
 
+/**
+ * @brief Skips whitespaces and comments
+ *
+ * @param l 
+ */
 void skip_whitespace(Lexer *l)
 {
 	while (l->curr < l->end)
@@ -97,6 +119,14 @@ static inline bool is_comment(Lexer *l)
 	return (result);
 }
 
+/**
+ * @brief Makes a token containing a text field
+ *
+ * @param l 
+ * @param type 
+ * @param text 
+ * @return new token for parser
+ */
 Token	make_token(Lexer *l, TokenType type, StringView text)
 {
 	Token result = {
@@ -108,6 +138,13 @@ Token	make_token(Lexer *l, TokenType type, StringView text)
 	return (result);
 }
 
+/**
+ * @brief Makes a token without a text field
+ *
+ * @param l 
+ * @param type 
+ * @return new token for parser
+ */
 Token	make_token_no_sv(Lexer *l, TokenType type)
 {
 	Token result = {

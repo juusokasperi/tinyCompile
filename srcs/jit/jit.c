@@ -151,7 +151,7 @@ JITResult jit_compile(Arena *a, IRFunction *func)
 
 	// Allocate
 	result.code = arena_alloc_aligned(a, total_size, 16);
-    if (!result.code) return result;
+    if (!result.code) return (result);
     result.size = total_size;
 
 	// Pass 2: emit 

@@ -1,5 +1,12 @@
 #include "lexer.h"
 
+/**
+ * @brief Lexer works on a as-requested basis,
+ * returns the next token for the parser
+ *
+ * @param l 
+ * @return Token
+ */
 Token lexer_next(Lexer *l)
 {
 	skip_whitespace(l);
