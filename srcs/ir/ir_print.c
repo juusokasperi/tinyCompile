@@ -3,6 +3,8 @@
 
 void ir_print(IRFunction *f)
 {
+	if (!f)
+		return;
 	printf("--- IR CODE ---\n");
 	IRChunk *curr = f->head;
 	int idx = 0;

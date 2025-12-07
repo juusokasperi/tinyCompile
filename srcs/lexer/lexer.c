@@ -66,6 +66,13 @@ Token lexer_next(Lexer *l)
 				return (make_token_no_sv(l, TOKEN_EQUAL_EQUAL));
 			}
 			return (make_token_no_sv(l, TOKEN_EQUAL));
+		case '=':
+			if (peek(l) == '=')
+			{
+				advance(l);
+				return (make_token_no_sv(l, TOKEN_EQUAL_EQUAL));
+			}
+			return (make_token_no_sv(l, TOKEN_EQUAL));
 		case '>':
 			if (peek(l) == '=')
 			{

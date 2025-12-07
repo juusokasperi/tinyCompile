@@ -84,9 +84,30 @@ static void gen_statement(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *s
 	if (node->type == AST_VAR_DECL)
 	{
 		// int x = <expr>;
-		size_t init_reg = gen_expression(a, f, node->var_decl.initializer, symtab);
+		size_t init_reg;
+		if (node->var_decl.initializer)
+			init_reg = gen_expression(a, f, node->var_decl.initializer, symtab);
+		else
+		{
+			init_reg = f->vreg_count++;
+			IRInstruction inst = { .opcode = IR_CONST, .dest = init_reg, .imm = 0 };
+			emit(a, f, inst);
+		}
 		symtab_add(symtab, node->var_decl.var_name, init_reg);
 		*last_reg = init_reg;
+		return;
+	}
+	if (node->type == AST_ASSIGNMENT)
+	{
+		Symbol *sym = symtab_lookup(symtab, node->assignment.var_name);
+		if (!sym)
+		{
+			fprintf(stderr, "Error: Assignment to undefined variable");
+			return;
+		}
+		size_t val_reg = gen_expression(a, f, node->assignment.value, symtab);
+		sym->vreg = val_reg;
+		*last_reg = val_reg;
 		return;
 	}
 	if (node->type == AST_RETURN)
@@ -114,7 +135,16 @@ IRFunction *ir_gen(Arena *a, ASTNode *root)
 	SymbolTable symtab = {0};
 	size_t result_reg = 0;
 
-	if (root->type == AST_BLOCK)
+	if (root->type == AST_FUNCTION)
+	{
+		ASTNode *body = root->function.body;
+		if (body && body->type == AST_BLOCK)
+		{
+			for (size_t i = 0; i < body->block.count; ++i)
+				gen_statement(a, f, body->block.statements[i], &symtab, &result_reg);
+		}
+	}
+	else if (root->type == AST_BLOCK)
 	{
 		for (size_t i = 0; i < root->block.count; ++i)
 			gen_statement(a, f, root->block.statements[i], &symtab, &result_reg);

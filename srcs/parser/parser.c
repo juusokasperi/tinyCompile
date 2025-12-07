@@ -2,12 +2,14 @@
 #include <stdio.h>
 
 static ASTNode	*parse_expression(Parser *p, Precedence precedence);
+static ASTNode	*parse_identifier(Parser *p);
 static ASTNode	*parse_grouping(Parser *p);
 static ASTNode	*parse_number(Parser *p);
 static ASTNode	*parse_unary(Parser *p);
 static ASTNode	*parse_binary(Parser *p, ASTNode *left);
 static ASTNode	*parse_statement(Parser *p);
 static ASTNode	*parse_block(Parser *p);
+static ASTNode	*parse_function(Parser *p);
 
 static void	p_advance(Parser *p)
 {
@@ -27,7 +29,7 @@ static void	consume(Parser *p, TokenType type, const char *message)
 		p_advance(p);
 		return;
 	}
-	fprintf(stderr, "Error: %s\n", message);
+	fprintf(stderr, "Error: %s on line %d, col %d\n", message, p->lexer->line, p->lexer->column);
 }
 
 static bool inline match(Parser *p, TokenType type)
@@ -49,6 +51,7 @@ static Precedence	get_token_precedence(TokenType type)
 {
 	switch (type)
 	{
+		case TOKEN_EQUAL:	return PREC_ASSIGNMENT;
 		case TOKEN_PLUS:
 		case TOKEN_MINUS:	return PREC_TERM;
 		case TOKEN_STAR:
@@ -57,21 +60,28 @@ static Precedence	get_token_precedence(TokenType type)
 	}
 }
 
+static ASTNode	*parse_identifier(Parser *p)
+{
+	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+	node->type = AST_IDENTIFIER;
+	node->identifier.name = p->current.text;
+	node->line = p->current.line;
+	return (node);
+}
+
 static ASTNode	*parse_statement(Parser *p)
 {
 	if (match(p, TOKEN_INT))
 	{
-        Token name_tok = p->current;
         consume(p, TOKEN_IDENTIFIER, "Expected variable name");
-        
-        StringView var_name = name_tok.text;
-        
-        consume(p, TOKEN_EQUAL, "Expected '=' after variable name");
-        
-        ASTNode *init = parse_expression(p, PREC_NONE);
-        
+        StringView var_name = p->current.text;
+
+		ASTNode *init = NULL;
+		if (match(p, TOKEN_EQUAL))
+			init = parse_expression(p, PREC_NONE);
+
         consume(p, TOKEN_SEMICOLON, "Expected ';' after variable declaration");
-        
+
         ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
         *node = (ASTNode){
             .type = AST_VAR_DECL,
@@ -126,11 +136,13 @@ static ASTNode	*parse_prefix(Parser *p)
 {
 	switch (p->current.type)
 	{
-		case TOKEN_NUMBER:	return (parse_number(p));
-		case TOKEN_LPAREN:	return (parse_grouping(p));
-		case TOKEN_MINUS:	return (parse_unary(p));
+		case TOKEN_IDENTIFIER:	return (parse_identifier(p));
+		case TOKEN_NUMBER:		return (parse_number(p));
+		case TOKEN_LPAREN:		return (parse_grouping(p));
+		case TOKEN_MINUS:		return (parse_unary(p));
 		default:
-			fprintf(stderr, "Expect expression.\n");
+			fprintf(stderr, "Expect expression at line %d (Token %.*s).\n",
+					p->current.line, (int)p->current.text.len, p->current.text.start);
 			return (NULL);
 	}
 }
@@ -138,6 +150,15 @@ static ASTNode	*parse_prefix(Parser *p)
 static ASTNode	*parse_infix(Parser *p, ASTNode	*left)
 {
 	TokenType operator_type = p->current.type;
+	if (operator_type == TOKEN_EQUAL)
+	{
+		ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+		node->type = AST_ASSIGNMENT;
+		node->assignment.var_name = left->identifier.name;
+		node->assignment.value = parse_expression(p, PREC_ASSIGNMENT);
+		return (node);
+	}
+
 	switch (operator_type)
 	{
 		case TOKEN_PLUS:
@@ -218,6 +239,34 @@ static ASTNode	*parse_binary(Parser *p, ASTNode *left)
 	return (node);
 }
 
+static ASTNode	*parse_function(Parser *p)
+{
+	if (!match(p, TOKEN_INT))
+		return (NULL);
+
+	consume(p, TOKEN_IDENTIFIER, "Expected function name.");
+	StringView func_name = p->current.text;
+
+	consume(p, TOKEN_LPAREN, "Expected '(' after function name.");
+	if (check(p, TOKEN_IDENTIFIER) && sv_eq_cstr(p->next.text, "void"))
+		p_advance(p);
+	
+	consume(p, TOKEN_RPAREN, "Expected ')' after parameters.");
+
+	ASTNode *body = parse_block(p);
+	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+	*node = (ASTNode){
+		.type = AST_FUNCTION,
+		.function = {
+			.name = func_name,
+			.params = NULL,	// params not supported yet
+			.param_count = 0,
+			.body = body
+		}
+	};
+	return (node);
+}
+
 ASTNode	*parse(Lexer *l, Arena *a)
 {
 	Parser p = {0};
@@ -225,6 +274,8 @@ ASTNode	*parse(Lexer *l, Arena *a)
 	p.arena = a;
 	p_advance(&p);
 
+	if (check(&p, TOKEN_INT))
+		return (parse_function(&p));
 	if (check(&p, TOKEN_LBRACE))
 		return (parse_block(&p));
 	else

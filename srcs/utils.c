@@ -65,6 +65,31 @@ void print_ast(ASTNode *node, int indent)
 
 	switch (node->type)
 	{
+		case AST_FUNCTION:
+            printf("Function: %.*s\n", (int)node->function.name.len, node->function.name.start);
+            print_ast(node->function.body, indent + 1);
+            break;
+		case AST_BLOCK:
+            printf("Block\n");
+            for (size_t i = 0; i < node->block.count; ++i)
+                print_ast(node->block.statements[i], indent + 1);
+            break;
+		case AST_VAR_DECL:
+            printf("VarDecl: %.*s\n", (int)node->var_decl.var_name.len, node->var_decl.var_name.start);
+            if (node->var_decl.initializer)
+                print_ast(node->var_decl.initializer, indent + 2);
+            break;
+        case AST_ASSIGNMENT:
+            printf("Assign: %.*s\n", (int)node->assignment.var_name.len, node->assignment.var_name.start);
+            print_ast(node->assignment.value, indent + 1);
+            break;
+        case AST_RETURN:
+            printf("Return\n");
+            print_ast(node->return_stmt.expression, indent + 1);
+            break;
+        case AST_IDENTIFIER:
+            printf("ID: %.*s\n", (int)node->identifier.name.len, node->identifier.name.start);
+            break;
 		case AST_NUMBER:
 			printf("Int: %.*s\n", (int)node->number.value.len, node->number.value.start);
 			break;

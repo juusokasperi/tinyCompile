@@ -28,6 +28,8 @@ int main(int argc, char **argv)
     lexer_init(&lexer, file.data, file.length);
 	
 	ASTNode *root = parse(&lexer, &ast_arena);
+	if (!root)
+		return (1);
 	
 	printf("--- AST Structure ---\n");
     print_ast(root, 0);
