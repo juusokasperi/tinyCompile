@@ -333,6 +333,8 @@ ASTNode	*parse(Lexer *l, Arena *a)
 		return (parse_function(&p));
 	if (check(&p, TOKEN_LBRACE))
 		return (parse_block(&p));
-	else
-		return (parse_expression(&p, PREC_NONE));
+	// else
+	//	return (parse_expression(&p, PREC_NONE));
+	report_error(&p, "Expected external declaration (e.g., function)");
+	return (NULL);
 }
