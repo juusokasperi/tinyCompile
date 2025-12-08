@@ -262,11 +262,6 @@ bool semantic_analyze(Arena *a, ASTNode *root, ErrorList *errors,
 	bool result = true;
 	if (root->type == AST_FUNCTION)
 	{
-		if (!global_declare_function(global, a, errors,
-					root->function.name, TYPE_INT32, root->function.params,
-					root->function.param_count, root->line, filename))
-			result = false;
-
 		ASTNode *body = root->function.body;
 		if (body && body->type == AST_BLOCK)
 		{
