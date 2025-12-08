@@ -81,6 +81,9 @@ static ASTNode	*parse_identifier(Parser *p)
 
 static ASTNode	*parse_statement(Parser *p)
 {
+	if (check(p, TOKEN_LBRACE))
+		return (parse_block(p));
+
 	if (match(p, TOKEN_INT))
 	{
         consume(p, TOKEN_IDENTIFIER, "Expected variable name");
@@ -102,6 +105,7 @@ static ASTNode	*parse_statement(Parser *p)
         };
         return (node);
 	}
+
 	if (match(p, TOKEN_RETURN))
 	{
         ASTNode *expr = parse_expression(p, PREC_NONE);
@@ -114,6 +118,48 @@ static ASTNode	*parse_statement(Parser *p)
         };
         return (node);
     }
+
+	if (match(p, TOKEN_IF))
+	{
+		consume(p, TOKEN_LPAREN, "Expected '(' after 'if'");
+		ASTNode *condition = parse_expression(p, PREC_NONE);
+		consume(p, TOKEN_RPAREN, "Expected ')' after condition");
+
+		ASTNode *then_branch = parse_statement(p);
+		ASTNode *else_branch = NULL;
+
+		if (match(p, TOKEN_ELSE))
+			else_branch = parse_statement(p);
+
+		ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+		*node = (ASTNode){
+			.type = AST_IF,
+			.if_stmt = {
+				.condition = condition,
+				.then_branch = then_branch,
+				.else_branch = else_branch
+			}
+		};
+		return (node);
+	}
+
+	if (match(p, TOKEN_WHILE))
+	{
+		consume(p, TOKEN_LPAREN, "Expected '(' after 'while'");
+		ASTNode *condition = parse_expression(p, PREC_NONE);
+		consume(p, TOKEN_RPAREN, "Expected ')' after condition");
+		ASTNode *body = parse_statement(p);
+		ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+		*node = (ASTNode){
+			.type = AST_WHILE,
+			.while_stmt = { 
+				.condition = condition,
+				.body = body
+			}
+		};
+		return (node);
+	}
+
 	ASTNode *expr = parse_expression(p, PREC_NONE);
     consume(p, TOKEN_SEMICOLON, "Expected ';' after expression");
     return (expr);
