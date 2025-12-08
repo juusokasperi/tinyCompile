@@ -1,8 +1,8 @@
 int main(void)
 {
 	int x;
-	int i = 5;
+	int i = 6;
 
-	x = i + 2;
+	x = i - 2;
 	return (x);
 }
