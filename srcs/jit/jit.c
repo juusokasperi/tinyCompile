@@ -113,6 +113,35 @@ static size_t encode_inst(uint8_t *buf, IRInstruction *inst)
             emit_u32(&curr, &size, dest_disp);
             break;
 
+		case IR_DIV:
+			// mov rax, [rbp + src1] (Dividend)
+            emit_u8(&curr, &size, 0x48);
+            emit_u8(&curr, &size, 0x8B);
+            emit_u8(&curr, &size, 0x85);
+            emit_u32(&curr, &size, src_1_disp);
+
+            // cqo (Sign extend RAX into RDX:RAX)
+            emit_u8(&curr, &size, 0x48);
+            emit_u8(&curr, &size, 0x99);
+
+            // mov rcx, [rbp + src2] (Divisor)
+            emit_u8(&curr, &size, 0x48);
+            emit_u8(&curr, &size, 0x8B);
+            emit_u8(&curr, &size, 0x8D);
+            emit_u32(&curr, &size, src_2_disp);
+
+            // idiv rcx (Signed divide RDX:RAX by RCX)
+            emit_u8(&curr, &size, 0x48);
+            emit_u8(&curr, &size, 0xF7);
+            emit_u8(&curr, &size, 0xF9);
+
+            // mov [rbp + dest], rax (Quotient)
+            emit_u8(&curr, &size, 0x48);
+            emit_u8(&curr, &size, 0x89);
+            emit_u8(&curr, &size, 0x85);
+            emit_u32(&curr, &size, dest_disp);
+            break;
+
         case IR_RET:
             // mov rax, [rbp + src1] (Return value)
             emit_u8(&curr, &size, 0x48);
