@@ -1,11 +1,14 @@
 SRCS_LEXER = lexer.c helpers.c
 DIR_LEXER = lexer/
 
-SRCS_MEMARENA = memarena.c
-DIR_MEMARENA = memarena/
-
 SRCS_PARSER = parser.c
 DIR_PARSER = parser/
+
+SRCS_SEMANTIC = semantic.c
+DIR_SEMANTIC = semantic/
+
+SRCS_COMPILE = compile.c
+DIR_COMPILE = compile/
 
 SRCS_IR = ir_gen.c ir_print.c ir_symboltable.c
 DIR_IR = ir/
@@ -15,8 +18,9 @@ DIR_JIT = jit/
 
 SRCS = main.c utils.c
 SRCS += $(addprefix $(DIR_LEXER), $(SRCS_LEXER)) \
-		$(addprefix $(DIR_MEMARENA), $(SRCS_MEMARENA)) \
 		$(addprefix $(DIR_PARSER), $(SRCS_PARSER)) \
+		$(addprefix $(DIR_SEMANTIC), $(SRCS_SEMANTIC)) \
+		$(addprefix $(DIR_COMPILE), $(SRCS_COMPILE)) \
 		$(addprefix $(DIR_IR), $(SRCS_IR)) \
 		$(addprefix $(DIR_JIT), $(SRCS_JIT))
 
