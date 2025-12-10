@@ -1,4 +1,6 @@
+
 #include "compile.h"
+#include "layout.h"
 #include "utils.h"
 #include <stdio.h>
 
@@ -16,14 +18,14 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath)
 {
 	if (ctx->count >= ctx->capacity)
 	{
-		fprintf(stderr, "Too many files (max %zu)\n", ctx->capacity);
+		fprintf(stderr, BOLD_RED "  > too many files (max %zu)\n" RESET, ctx->capacity);
 		return (false);
 	}
 	int fd = safe_open((char *)filepath);
 	FileMap file = map_input(fd);
 	if (!file.data)
 	{
-		fprintf(stderr, "Failed to map file: %s\n", filepath);
+		fprintf(stderr, BOLD_RED "  > failed to map file: %s\n" RESET, filepath);
 		return (false);
 	}
 	file.name = filepath;
@@ -34,26 +36,25 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath)
 	};
 	ctx->count++;
 
-	printf("Added file: %s (%zu bytes)\n", filepath, file.length);
+	printf(BOLD_GREEN "> LOAD SOURCE: " RESET WHITE "%s (%zu bytes)\n" RESET, filepath, file.length);
 	return (true);
 }
 
 bool compile_parse_all(CompilationContext *ctx)
 {
 	bool all_ok = true;
-	printf("\n=== Parsing Phase ===\n");
 
 	for (size_t i = 0; i < ctx->count; ++i)
 	{
 		CompilationUnit *unit = &ctx->units[i];
-		printf ("Parsing %s...\n", unit->file.name);
+		printf ("  > parsing %s\n", unit->file.name);
 		Lexer lexer;
 		lexer_init(&lexer, &unit->file);
 		unit->ast = parse(&lexer, ctx->arena);
 		unit->parsed_ok = (unit->ast != NULL);
 		if (!unit->parsed_ok)
 		{
-			fprintf(stderr, "Parse failed for %s\n", unit->file.name);
+			fprintf(stderr, BOLD_RED "  > parse failed for %s\n" RESET, unit->file.name);
 			all_ok = false;
 		}
 	}
@@ -65,35 +66,39 @@ bool compile_analyze_all(CompilationContext *ctx)
 {
 	bool all_ok = true;
 
-	printf("\n=== Semantic Analysis Phase ===\n");
-    
-	printf("Pass 1: Collecting function declarations..\n");
+	printf("  > collecting function declarations\n");
 	for (size_t i = 0; i < ctx->count; ++i)
 	{
 		CompilationUnit *unit = &ctx->units[i];
 		if (!unit->parsed_ok)
 			continue;
-		if (unit->ast && unit->ast->type == AST_FUNCTION)
+		for (size_t j = 0; j < unit->ast->translation_unit.count; ++j)
 		{
-			if (!global_declare_function(&ctx->global, ctx->arena, &ctx->errors,
-						unit->ast->function.name, TYPE_INT32, unit->ast->function.params,
-						unit->ast->function.param_count, unit->ast->line, unit->file.name))
-				all_ok = false;
+			ASTNode *func = unit->ast->translation_unit.declarations[j];
+			if (func->type == AST_FUNCTION)
+			{
+				if (!global_declare_function(&ctx->global, ctx->arena, &ctx->errors, func, unit->file.name))
+					all_ok = false;
+			}
 		}
 		if (!all_ok)
 			return (false);
 	}
 	
-	printf("Pass 1: Analyzing function bodies..\n");
+	printf("  > analyzing function bodies\n");
 	for (size_t i = 0; i < ctx->count; ++i)
 	{
 		CompilationUnit *unit = &ctx->units[i];
 		if (!unit->parsed_ok)
 			continue;
-		printf("Analyzing %s...\n", unit->file.name);
-		if (!semantic_analyze(ctx->arena, unit->ast, &ctx->errors, 
-					unit->file.name, &ctx->global))
-			all_ok = false;
+		printf("%4zu | %s\n", i, unit->file.name);
+		for (size_t j = 0; j < unit->ast->translation_unit.count; ++j)
+		{
+			ASTNode *func = unit->ast->translation_unit.declarations[j];
+			if (!semantic_analyze(ctx->arena, func, &ctx->errors, 
+						unit->file.name, &ctx->global))
+				all_ok = false;
+		}
 	}
 
 	return (all_ok);
@@ -103,7 +108,8 @@ void compile_print_errors(CompilationContext *ctx)
 {
 	if (ctx->errors.count > 0)
 	{
-		fprintf(stderr, "\n=== Compilation Errors (%zu) ===\n", ctx->errors.count);
+		char *msg = arena_sprintf(ctx->arena, "COMPILE ERRORS (%zu)", ctx->errors.count);	
+		print_phase(-1, msg);
 		error_list_print(&ctx->errors);
 	}
 }
@@ -115,9 +121,12 @@ ASTNode *compile_get_entry_point(CompilationContext *ctx)
 		CompilationUnit *unit = &ctx->units[i];
 		if (!unit->ast || !unit->parsed_ok)
 			continue;
-		if (unit->ast->type == AST_FUNCTION)
-			if (sv_eq_cstr(unit->ast->function.name, "main"))
-				return (unit->ast);
+		for (size_t j = 0; j < unit->ast->translation_unit.count; ++j)
+		{
+			ASTNode *func = unit->ast->translation_unit.declarations[j];
+			if (func->type == AST_FUNCTION && sv_eq_cstr(func->function.name, "main"))
+				return (func);
+		}
 	}
 
 	return (NULL);
