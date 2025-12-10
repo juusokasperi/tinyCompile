@@ -55,7 +55,7 @@ static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable
 	if (node->type == AST_NUMBER)
 	{
 		size_t reg = f->vreg_count++;
-		int64_t val = atoll(node->number.value.start);
+		int64_t val = sv_to_int(a, node->number.value);
 		IRInstruction inst = {
 			.opcode = IR_CONST,
 			.dest = reg,

@@ -22,6 +22,8 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath)
 		return (false);
 	}
 	int fd = safe_open((char *)filepath);
+	if (fd == -1)
+		return (false);
 	FileMap file = map_input(fd);
 	if (!file.data)
 	{

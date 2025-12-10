@@ -7,7 +7,6 @@ int safe_open(char *file)
 	{
 		perror(BOLD_RED "  > error opening file" RESET);
 		printf("\n");
-		exit(1);
 	}
 	return (fd);
 }
@@ -46,20 +45,6 @@ FileMap map_input(int fd)
 	res.data = map;
 	res.length = stat_buf.st_size;
 	return (res);
-}
-
-bool parse_input(char **argv, FileMap *out_file)
-{
-	// For future, multiple files parsing..
-	int fd = safe_open(argv[0]);
-	*out_file = map_input(fd);
-	out_file->name = argv[0];
-	if (out_file->data)
-	{
-		printf("Succesfully mapped %zu bytes.\n", out_file->length);
-		return (true);
-	}
-	return (false);
 }
 
 void print_ast(ASTNode *node, int indent)
