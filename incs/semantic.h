@@ -6,9 +6,6 @@
 # include "shared_types.h"
 # include <stdbool.h>
 
-# define MAX_VARS 256
-# define MAX_FUNCS 256
-
 typedef struct ErrorNode ErrorNode;
 
 struct ErrorNode {
@@ -66,8 +63,8 @@ bool	semantic_analyze(Arena *a, ASTNode *root, ErrorList *errors, const char *fi
 
 void	global_scope_init(GlobalScope *globa);
 bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
-								StringView name, DataType return_type, Parameter *params,
-								size_t param_count, int line, const char *filename);
+                ASTNode *func_node, const char *filename);
+
 FunctionInfo	*global_lookup_function(GlobalScope *global, StringView name);
 
 void	error_list_init(ErrorList *list);
