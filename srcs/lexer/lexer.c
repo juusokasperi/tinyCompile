@@ -59,6 +59,7 @@ Token lexer_next(Lexer *l)
         case '{': return (make_token(l, TOKEN_LBRACE, text));
         case '}': return (make_token(l, TOKEN_RBRACE, text));
         case ';': return (make_token(l, TOKEN_SEMICOLON, text));
+		case ',': return (make_token(l, TOKEN_COMMA, text));
 		case '!':
 			if (peek(l) == '=')
 			{
