@@ -2,8 +2,68 @@
 # define JIT_H
 
 # include <stdint.h>
+# include <stdbool.h>
+# include "shared_types.h"
 # include "ir.h"
 # include "memarena.h"
+
+typedef enum {
+    REG_RAX = 0,
+    REG_RCX = 1,
+    REG_RDX = 2,
+    REG_RBX = 3,
+    REG_RSP = 4,
+    REG_RBP = 5,
+    REG_RSI = 6,
+    REG_RDI = 7,
+	REG_R8 = 8,
+	REG_R9 = 9,
+} X86Reg;
+
+typedef enum {
+	REX_W = 0x48,	// 64-bit Operand Size
+	REX_WB = 0x49,	// REX.W + REX_B (for R8-R15)
+} X86Prefix;
+
+typedef enum {
+	ALU_ADD = 0x01,
+	ALU_OR = 0x09,
+	ALU_AND = 0x21,
+	ALU_SUB = 0x29,
+	ALU_XOR = 0x31,
+	ALU_CMP = 0x39,
+	ALU_IMM = 0x81,		// 32-bit immediate
+
+	MOV_RM_R = 0x89,	// Store: Move register to r/m
+	MOV_R_RM = 0x8B,	// Load: Move r/m to register
+	MOV_IMM_R = 0xB8,	// Imm: Mov imm64 to register
+	
+	OP_PUSH = 0x50,		// Push reg
+	OP_POP = 0x58,
+	OP_RET = 0xC3,
+	OP_LEAVE = 0xC9,	// Leave (mov rsp, rbp; pop rbp)
+	OP_CALL_IND = 0xFF,	// Call indirect (call rax)
+	
+	OP_CQO = 0x99,		// Sign extend (RAX -> RDX)
+	OP_IDIV = 0xF7,		// Integer division
+	OP_IMUL_1 = 0x0F,
+	OP_IMUL_2 = 0xAF,	// 2nd byte of IMUL (1st is 0x0F)
+} X86Opcode;
+
+typedef enum {
+	MOD_MEM = 0x00,			// [reg]
+	MOD_MEM_DISP8 = 0x40, 	// [reg + disp8]
+	MOD_MEM_DISP32 = 0x80, 	// [reg + disp32]
+	MOD_REG = 0xC0,			// reg (direct register access)
+} X86ModMode;
+
+typedef enum {
+	EXT_ADD = 0,
+	EXT_IDIV = 7,
+	EXT_NEG = 3,
+	EXT_SUB = 5,
+	EXT_CALL = 2,
+} X86Extension;
 
 typedef struct {
 	uint8_t *code;
@@ -12,6 +72,52 @@ typedef struct {
 
 typedef int64_t (*JITFunc)(void);
 
-JITResult jit_compile(Arena *a, IRFunction *func);
+typedef struct {
+	StringView	name;
+	uint8_t		*code_addr;
+	size_t		code_size;
+} CompiledFunction;
+
+typedef struct {
+	CompiledFunction	*functions;
+	size_t				count;
+	size_t				capacity;
+} FunctionRegistry;
+
+typedef struct {
+	uint8_t		*patch_location;
+	StringView	target_name;
+} CallSite;
+
+typedef struct {
+	CallSite	*sites;
+	size_t		count;
+	size_t		capacity;
+} CallSiteList;
+
+typedef struct {
+	Arena 				*arena;
+	FunctionRegistry	registry;
+	CallSiteList		call_sites;
+} JITContext;
+
+typedef struct {
+	size_t	arg_vregs[MAX_ARGS];
+	size_t	count;
+} PendingCall;
+
+void		jit_ctx_init(JITContext *ctx, Arena *a);
+JITResult	jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *func);
+bool		jit_link_all(JITContext *ctx);
+
+void		emit_u8(uint8_t **buf, size_t *count, uint8_t byte);
+void		emit_u32(uint8_t **buf, size_t *count, uint32_t val);
+void		emit_u64(uint8_t **buf, size_t *count, uint64_t val);
+void		emit_store_local(uint8_t **buf, size_t *cnt, X86Reg src, int32_t disp);
+void		emit_load_param(uint8_t **buf, size_t *cnt, X86Reg dst, int32_t disp);
+void		emit_mov_imm(uint8_t **buf, size_t *cnt, X86Reg dst, uint64_t imm);
+void		emit_alu(uint8_t **buf, size_t *cnt, X86Opcode op, X86Reg dst, X86Reg src);
+void		emit_imul_r64(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void        emit_mov_reg_reg(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 
 #endif
