@@ -98,6 +98,18 @@ void print_ast(ASTNode *node, int indent)
 		case AST_SUB:	printf("Op: -\n"); break;
 		case AST_MUL:	printf("Op: *\n"); break;
 		case AST_DIV:	printf("Op: /\n"); break;
+		case AST_CALL:
+    		printf("Call: %.*s(", (int)node->call.function_name.len, node->call.function_name.start);
+    		for (size_t i = 0; i < node->call.arg_count; i++)
+			{
+        		if (i > 0) printf(", ");
+        		printf("arg%zu", i);
+    		}
+    		printf(")\n");
+    		for (size_t i = 0; i < node->call.arg_count; i++) {
+   		    	print_ast(node->call.args[i], indent + 1);
+  			}
+    		break;
 		default:		printf("Unknown node\n"); break;
 	}
 
@@ -125,4 +137,45 @@ void print_file(FileMap *file)
 		line++;
 		printf("\n");
 	}
+}
+
+void print_header(void)
+{
+	const char *logo = RESET BOLD GREEN
+	BOX_V RESET CYAN "  _   _                                   " RESET BOLD GREEN BOX_V "\n"       
+	BOX_V RESET CYAN " | |_(_)_ __  _   _                       " RESET BOLD GREEN BOX_V "\n" 
+	BOX_V RESET CYAN " | __| | '_ \\| | | |  " BOLD "tinyCompile v0.1    " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN " | |_| | | | | |_| |  " BOLD "Build: release      " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN "  \\__|_|_| |_|\\__, |                      " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN "              |___/                       " RESET BOLD GREEN BOX_V "\n";
+	
+	printf(BOLD GREEN BOX_TL);
+	for (int i = 0; i < 42; ++i)
+		printf(BOX_H);
+	printf(BOX_TR "\n");
+	printf("%s", logo);
+	printf(BOX_BL);
+	for (int i = 0; i < 42; ++i)
+		printf(BOX_H);
+	printf(BOX_BR RESET "\n\n");
+}
+
+void print_phase(int step, const char *name)
+{
+	const int WIDTH = 42;
+
+	if (step < 0)
+		printf("\n" BOLD_RED "[KO] %s" RESET, name);
+	else
+		printf("\n" BOLD_GREEN "[%02d] %s" RESET, step, name);
+
+	int len = strlen(name) + 4;
+	int dots = WIDTH - len;
+	if (step < 0)
+		printf(DIM RED);
+	else
+		printf(DIM GREEN);
+	for (int i = 0; i < dots; ++i)
+		printf(".");
+	printf(RESET "\n");
 }
