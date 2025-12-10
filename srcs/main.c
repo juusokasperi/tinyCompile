@@ -4,6 +4,7 @@
 #include "ir.h"
 #include "jit.h"
 #include "compile.h"
+#include "layout.h"
 #include "utils.h"
 #include <stdio.h>
 #include <sys/mman.h>
@@ -19,6 +20,7 @@ static void cleanup_files(CompilationContext *ctx)
 
 int main(int argc, char **argv)
 {
+	print_header();
 	if (argc < 2)
 	{
 		fprintf(stderr, "Usage: %s <file1.c> [file2.c ...]\n", argv[0]);
@@ -42,9 +44,10 @@ int main(int argc, char **argv)
 		}
 	}
 
+	print_phase(1, "PARSING");
 	if (!compile_parse_all(&ctx))
 	{
-		fprintf(stderr, "\nParsing failed.\n");
+		fprintf(stderr, BOLD_RED "\n  > parsing failed.\n" RESET);
 		compile_print_errors(&ctx);
 		cleanup_files(&ctx);
 		arena_free(&ast_arena);
@@ -52,9 +55,10 @@ int main(int argc, char **argv)
 		return (1);
 	}
 
+	print_phase(2, "SEMANTICS");
 	if (!compile_analyze_all(&ctx))
 	{
-		fprintf(stderr, "\nSemantic analysis failed.\n");
+		fprintf(stderr, BOLD_RED "\n  > semantic analysis failed.\n" RESET);
 		compile_print_errors(&ctx);
 		cleanup_files(&ctx);
 		arena_free(&ast_arena);
@@ -62,57 +66,78 @@ int main(int argc, char **argv)
 		return (1);
 	}
 
-	printf("\nCompilation successful!\n");
+	JITContext jit_ctx;
+	jit_ctx_init(&jit_ctx, &jit_arena);
 
-	ASTNode *entry = compile_get_entry_point(&ctx);
-	if (!entry)
+	print_phase(3, "JIT");
+	for (size_t i = 0; i < ctx.count; ++i)
 	{
-		fprintf(stderr, "No entry point found (need a 'main' function)\n");
+		CompilationUnit *unit = &ctx.units[i];
+		if (!unit->parsed_ok)
+			continue;
+
+		for (size_t j = 0; j < unit->ast->translation_unit.count; ++j)
+		{
+			ASTNode *func = unit->ast->translation_unit.declarations[j];
+			printf("  :: compiling symbol '%.*s'\n", (int)func->function.name.len, func->function.name.start);
+
+			IRFunction *ir = ir_gen(&jit_arena, func);
+			if (!ir)
+			{
+				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);
+				cleanup_files(&ctx);
+				arena_free(&ast_arena);
+				arena_free(&jit_arena);
+				return (1);
+			}
+
+			if (sv_eq_cstr(func->function.name, "main"))
+				ir_print(ir);
+
+			JITResult jit = jit_compile_function(&jit_ctx, ir, func);
+			if (!jit.code)
+			{
+				fprintf(stderr, BOLD_RED "  > compilation failed\n" RESET);
+				cleanup_files(&ctx);
+				arena_free(&ast_arena);
+				arena_free(&jit_arena);
+				return (1);
+			}
+		}
+	}
+	
+	if (!jit_link_all(&jit_ctx))
+	{
+		fprintf(stderr, BOLD_RED "  > linking failed\n" RESET);
 		cleanup_files(&ctx);
 		arena_free(&ast_arena);
 		arena_free(&jit_arena);
 		return (1);
 	}
 
-	printf("\n--- AST Structure ---\n");
-	print_ast(entry, 0);
-	printf("\n");
-
-	IRFunction *ir = ir_gen(&jit_arena, entry);
-	if (!ir)
-	{
-		fprintf(stderr, "IR generation failed.\n");
-		cleanup_files(&ctx);
-		arena_free(&ast_arena);
-		arena_free(&jit_arena);
-		return (1);
-	}
-	ir_print(ir);
-
-	JITResult jit = jit_compile(&jit_arena, ir);
-	if (!jit.code)
-	{
-		fprintf(stderr, "JIT compilation failed.\n");
-		cleanup_files(&ctx);
-		arena_free(&ast_arena);
-		arena_free(&jit_arena);
-		return (1);
-	}
-
-	printf("Generated %zu bytes of x86-64 machine code.\n", jit.size);
 	if (!arena_set_prot(&jit_arena, PROT_READ | PROT_EXEC))
 	{
-		perror("Failed to set executable permissions");
+		perror(BOLD_RED "  > failed to set executable permissions" RESET);
 		cleanup_files(&ctx);
 		arena_free(&ast_arena);
 		arena_free(&jit_arena);
 		return (1);
 	}
 
-	printf("\n--- Execution ---\n");
-	JITFunc func = (JITFunc)jit.code;
-	int64_t result = func();
-	printf("Result: %lld\n", result);
+	print_phase(4, "EXECUTION");
+	
+	for (size_t i = 0; i < jit_ctx.registry.count; i++)
+	{
+    	if (sv_eq_cstr(jit_ctx.registry.functions[i].name, "main"))
+		{
+        	JITFunc main_func = (JITFunc)jit_ctx.registry.functions[i].code_addr;
+        	int64_t result = main_func();
+			printf(GREEN "  -----------------------------------------\n");
+    		printf("   RETURN CODE >> " BOLD_WHITE "%lld" RESET "\n", result);
+    		printf(GREEN "  -----------------------------------------\n" RESET);
+        	break;
+    	}
+	}
 
 	cleanup_files(&ctx);
 	arena_free(&ast_arena);
