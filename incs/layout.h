@@ -18,6 +18,5 @@
 #define BOX_BR "╝" // Bottom Right
 #define BOX_H  "═" // Horizontal
 #define BOX_V  "║" // Vertical
-#define BOX_SINGLE_H  "─" // Horizontal
 
 #endif
