@@ -10,6 +10,7 @@ static ASTNode	*parse_binary(Parser *p, ASTNode *left);
 static ASTNode	*parse_statement(Parser *p);
 static ASTNode	*parse_block(Parser *p);
 static ASTNode	*parse_function(Parser *p);
+static ASTNode	*parse_call(Parser *p, ASTNode *callee);
 
 static void report_error(Parser *p, const char *msg)
 {
@@ -62,12 +63,46 @@ static Precedence	get_token_precedence(TokenType type)
 	switch (type)
 	{
 		case TOKEN_EQUAL:	return PREC_ASSIGNMENT;
+		case TOKEN_LPAREN:	return PREC_CALL;
 		case TOKEN_PLUS:
 		case TOKEN_MINUS:	return PREC_TERM;
 		case TOKEN_STAR:
 		case TOKEN_SLASH:	return PREC_FACTOR;
 		default:			return PREC_NONE;
 	}
+}
+
+static ASTNode	*parse_call(Parser *p, ASTNode *callee)
+{
+	if (callee->type != AST_IDENTIFIER)
+	{
+		report_error(p, "Can only call functions");
+		return (NULL);
+	}
+
+	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+	node->type = AST_CALL;
+	node->call.function_name = callee->identifier.name;
+	node->line = callee->line;
+	node->column = callee->column;
+
+	ASTNode **args = arena_alloc(p->arena, sizeof(ASTNode*) * MAX_ARGS);
+	size_t arg_count = 0;
+
+	if (!check(p, TOKEN_RPAREN))
+	{
+		do
+		{
+			args[arg_count++] = parse_expression(p, PREC_ASSIGNMENT);
+		} while (match(p, TOKEN_COMMA));
+	}
+
+	consume(p, TOKEN_RPAREN, "Expected ')' after arguments");
+	node->call.args = args;
+	node->call.arg_count = arg_count;
+
+	return (node);
+
 }
 
 static ASTNode	*parse_identifier(Parser *p)
@@ -205,6 +240,9 @@ static ASTNode	*parse_prefix(Parser *p)
 static ASTNode	*parse_infix(Parser *p, ASTNode	*left)
 {
 	TokenType operator_type = p->current.type;
+	if (operator_type == TOKEN_LPAREN)
+		return (parse_call(p, left));
+
 	if (operator_type == TOKEN_EQUAL)
 	{
 		ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
@@ -303,9 +341,29 @@ static ASTNode	*parse_function(Parser *p)
 	StringView func_name = p->current.text;
 
 	consume(p, TOKEN_LPAREN, "Expected '(' after function name.");
-	if (check(p, TOKEN_IDENTIFIER) && sv_eq_cstr(p->next.text, "void"))
-		p_advance(p);
-	
+
+	Parameter *params = NULL;
+	size_t param_count = 0;
+
+	if (!check(p, TOKEN_RPAREN))
+	{
+		params = arena_alloc(p->arena, sizeof(Parameter) * 16);
+		if (check(p, TOKEN_IDENTIFIER) && sv_eq_cstr(p->next.text, "void"))
+			p_advance(p);
+		else
+		{
+			do
+			{
+				consume(p, TOKEN_INT, "Expected parameter type");
+				consume(p, TOKEN_IDENTIFIER, "Expected parameter name");
+				params[param_count++] = (Parameter){
+					.name = p->current.text,
+					.type = TYPE_INT32
+				};
+			} while (match(p, TOKEN_COMMA));
+		}
+	}
+
 	consume(p, TOKEN_RPAREN, "Expected ')' after parameters.");
 
 	ASTNode *body = parse_block(p);
@@ -314,8 +372,8 @@ static ASTNode	*parse_function(Parser *p)
 		.type = AST_FUNCTION,
 		.function = {
 			.name = func_name,
-			.params = NULL,	// params not supported yet
-			.param_count = 0,
+			.params = params,
+			.param_count = param_count,
 			.body = body
 		}
 	};
@@ -329,12 +387,28 @@ ASTNode	*parse(Lexer *l, Arena *a)
 	p.arena = a;
 	p_advance(&p);
 
-	if (check(&p, TOKEN_INT))
-		return (parse_function(&p));
-	if (check(&p, TOKEN_LBRACE))
-		return (parse_block(&p));
-	// else
-	//	return (parse_expression(&p, PREC_NONE));
-	report_error(&p, "Expected external declaration (e.g., function)");
-	return (NULL);
+	ASTNode **declarations = arena_alloc(a, sizeof(ASTNode*) * MAX_FUNCS);
+	size_t count = 0;
+
+	while (!check(&p, TOKEN_EOF))
+	{
+		if (check(&p, TOKEN_INT))
+			declarations[count++] = parse_function(&p);
+		else
+		{
+			report_error(&p, "Expected function declaration.");
+			return (NULL);
+		}
+	}
+
+	ASTNode *node = arena_alloc(a, sizeof(ASTNode));
+	*node = (ASTNode){
+		.type = AST_TRANSLATION_UNIT,
+		.translation_unit = {
+			.declarations = declarations,
+			.count = count
+		}
+	};
+
+	return (node);
 }
