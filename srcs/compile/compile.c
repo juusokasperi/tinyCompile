@@ -1,4 +1,3 @@
-
 #include "compile.h"
 #include "layout.h"
 #include "utils.h"
@@ -94,13 +93,8 @@ bool compile_analyze_all(CompilationContext *ctx)
 		if (!unit->parsed_ok)
 			continue;
 		printf("%4zu | %s\n", i, unit->file.name);
-		for (size_t j = 0; j < unit->ast->translation_unit.count; ++j)
-		{
-			ASTNode *func = unit->ast->translation_unit.declarations[j];
-			if (!semantic_analyze(ctx->arena, func, &ctx->errors, 
-						unit->file.name, &ctx->global))
-				all_ok = false;
-		}
+		if (!semantic_analyze(ctx->arena, unit, &ctx->errors, &ctx->global))
+			all_ok = false;
 	}
 
 	return (all_ok);

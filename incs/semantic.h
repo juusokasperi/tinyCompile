@@ -6,6 +6,7 @@
 # include "shared_types.h"
 # include <stdbool.h>
 
+typedef struct CompilationUnit CompilationUnit;
 typedef struct ErrorNode ErrorNode;
 
 struct ErrorNode {
@@ -59,9 +60,12 @@ typedef struct {
 	const char	*filename;
 	GlobalScope	*global;
 	DataType	current_return_type;
+
+	StringView	visible_funcs[MAX_FUNCS];
+	size_t		visible_count;
 } SemanticAnalyzer;
 
-bool	semantic_analyze(Arena *a, ASTNode *root, ErrorList *errors, const char *filename, GlobalScope *global);
+bool	semantic_analyze(Arena *a, CompilationUnit *unit, ErrorList *errors, GlobalScope *global);
 
 void	global_scope_init(GlobalScope *globa);
 bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,

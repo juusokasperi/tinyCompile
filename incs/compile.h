@@ -9,7 +9,7 @@
 # include "semantic.h"
 # include <stdbool.h>
 
-typedef struct {
+typedef struct CompilationUnit {
 	FileMap	file;
 	ASTNode	*ast;
 	bool	parsed_ok;

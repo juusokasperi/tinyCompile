@@ -1,4 +1,5 @@
 #include "semantic.h"
+#include "compile.h"
 #include <stdio.h>
 
 void error_list_init(ErrorList *list)
@@ -133,6 +134,24 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 		}
 		case AST_CALL:
 		{
+			bool is_visible = false;
+			for (size_t i = 0; i < sa->visible_count; ++i)
+			{
+				if (sv_eq(sa->visible_funcs[i], node->call.function_name))
+				{
+					is_visible = true;
+					break;
+				}
+			}
+
+			if (!is_visible)
+			{
+				char *msg = arena_sprintf(sa->arena, "implicit declaration of function '%.*s' is invalid in tinyCompile",
+						(int)node->call.function_name.len, node->call.function_name.start);
+				error_list_add(sa->errors, sa->arena, msg, sa->filename, node->line, node->column);
+				return (false);
+			}
+
 			FunctionInfo *func = global_lookup_function(sa->global, node->call.function_name);
 			if (!func)
 			{
@@ -333,52 +352,74 @@ FunctionInfo *global_lookup_function(GlobalScope *global, StringView name)
 	return (NULL);
 }
 
-bool semantic_analyze(Arena *a, ASTNode *root, ErrorList *errors, 
-		const char *filename, GlobalScope *global)
+static bool analyze_node(SemanticAnalyzer *sa, ASTNode *node)
 {
-	if (!root)
-		return (false);
-	
+	bool result = true;
+	if (node->type == AST_FUNCTION)
+	{
+		for (size_t i = 0; i < node->function.param_count; ++i)
+		{
+			Parameter *param = &node->function.params[i];
+			if (!scope_declare(sa, param->name, param->type, node->line))
+				result = false;
+		}
+		ASTNode *body = node->function.body;
+		if (body && body->type == AST_BLOCK)
+		{
+			for (size_t i = 0; i < body->block.count; ++i)
+			{
+				if (!analyze_statement(sa, body->block.statements[i]))
+					result = false;
+			}
+		}
+	}
+	else if (node->type == AST_BLOCK)
+	{
+		for (size_t i = 0; i < node->block.count; ++i)
+		{
+			if (!analyze_statement(sa, node->block.statements[i]))
+				result = false;
+		}
+	}
+	else
+		result = analyze_expression(sa, node);
+
+	return (result);
+}
+
+bool semantic_analyze(Arena *a, CompilationUnit *unit, ErrorList *errors, GlobalScope *global)
+{
 	SemanticAnalyzer sa = {
 		.arena = a,
 		.errors = errors,
-		.filename = filename,
+		.filename = unit->file.name,
 		.global = global,
 		.current = NULL,
 		.current_return_type = TYPE_INT32,
 	};
 
-	scope_enter(&sa);
-	bool result = true;
-	if (root->type == AST_FUNCTION)
-	{
-		for (size_t i = 0; i < root->function.param_count; ++i)
-		{
-			Parameter *param = &root->function.params[i];
-			if (!scope_declare(&sa, param->name, param->type, root->line))
-				result = false;
-		}
-		ASTNode *body = root->function.body;
-		if (body && body->type == AST_BLOCK)
-		{
-			for (size_t i = 0; i < body->block.count; ++i)
-			{
-				if (!analyze_statement(&sa, body->block.statements[i]))
-					result = false;
-			}
-		}
-	}
-	else if (root->type == AST_BLOCK)
-	{
-		for (size_t i = 0; i < root->block.count; ++i)
-		{
-			if (!analyze_statement(&sa, root->block.statements[i]))
-				result = false;
-		}
-	}
-	else
-		result = analyze_expression(&sa, root);
+	bool all_ok = true;
 
-	scope_exit(&sa);
-	return (result && (errors->count == 0));
+	for (size_t i = 0; i < unit->ast->translation_unit.count; ++i)
+	{
+		ASTNode *node = unit->ast->translation_unit.declarations[i];
+
+		if (node->type == AST_FUNCTION)
+		{
+			bool already_visible = false;
+			for (size_t j = 0; j < sa.visible_count; ++j)
+			{
+				if (sv_eq(sa.visible_funcs[j], node->function.name))
+					already_visible = true;
+			}
+			if (!already_visible)
+				sa.visible_funcs[sa.visible_count++] = node->function.name;
+		}
+		scope_enter(&sa);
+			if (!analyze_node(&sa, node))
+				all_ok = false;
+		scope_exit(&sa);
+	}
+
+	return (all_ok);
 }
