@@ -5,6 +5,10 @@
 # include <stdbool.h>
 # include <string.h>
 
+# define MAX_VARS 256
+# define MAX_FUNCS 256
+# define MAX_ARGS 16
+# define MAX_CALL_SITES 1024
 /* Shared types between lexer and AST */
 
 typedef struct {
