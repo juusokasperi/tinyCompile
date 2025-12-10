@@ -16,7 +16,6 @@
 int safe_open(char *file);
 FileMap map_input(int fd);
 void print_ast(ASTNode *node, int indent);
-void print_file(FileMap *file);
 void print_header(void);
 void print_phase(int step, const char *name);
 
