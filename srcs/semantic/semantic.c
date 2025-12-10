@@ -258,15 +258,48 @@ bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
 	size_t param_count = func_node->function.param_count;
 	int line = func_node->line;
 	DataType return_type = TYPE_INT32;
+	bool is_prototype = func_node->function.is_prototype;
 
-	for (size_t i = 0; i < global->function_count; ++i)
+	FunctionInfo *existing = global_lookup_function(global, name);
+	if (existing)
 	{
-		if (sv_eq(global->functions[i].name, name))
+		// Check if param count matches (naive for now)
+		if (existing->param_count != param_count)
 		{
-			char *msg = arena_sprintf(a, "function '%.*s' already declared (first declared at %s:%d)",
-					(int)name.len, name.start, global->functions[i].filename, global->functions[i].line);
+			char *msg = arena_sprintf(a, "conflicting types for '%.*s'",
+					(int)name.len, name.start);
 			error_list_add(errors, a, msg, filename, line, 0);
 			return (false);
+		}
+
+		// Path 1: Existing function is a prototype
+		if (existing->is_prototype)
+		{
+			// If new function is not prototype, update the existing
+			// Else, it's a redeclaration
+			if (!is_prototype)
+			{
+				existing->is_prototype = false;
+				existing->line = line;
+				existing->filename = filename;
+				existing->params = params;
+				return (true);
+			}
+			return (true);
+		}
+
+		// Path 2: Existing is a definition
+		else
+		{
+			// If new one is also definition, it is an error
+			if (!is_prototype)
+			{
+				char *msg = arena_sprintf(a, "redefinition of '%.*s' (previous definition was at %s:%d)",
+						(int)name.len, name.start, existing->filename, existing->line);
+				error_list_add(errors, a, msg, filename, line, 0);
+				return (false);
+			}
+			return (true);
 		}
 	}
 
@@ -282,7 +315,8 @@ bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
 		.params = params,
 		.param_count = param_count,
 		.line = line,
-		.filename = filename
+		.filename = filename,
+		.is_prototype = is_prototype
 	};
 	global->function_count++;
 

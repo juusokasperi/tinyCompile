@@ -79,6 +79,8 @@ int main(int argc, char **argv)
 		for (size_t j = 0; j < unit->ast->translation_unit.count; ++j)
 		{
 			ASTNode *func = unit->ast->translation_unit.declarations[j];
+			if (func->function.is_prototype)
+                continue;
 			printf("  :: compiling symbol '%.*s'\n", (int)func->function.name.len, func->function.name.start);
 
 			IRFunction *ir = ir_gen(&jit_arena, func);

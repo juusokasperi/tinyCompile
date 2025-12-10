@@ -113,6 +113,7 @@ struct ASTNode {
 			Parameter	*params;
 			size_t 		param_count;
 			ASTNode		*body;
+			bool		is_prototype;
 		} function;
 
 		struct {

@@ -44,6 +44,7 @@ typedef struct {
 	size_t		param_count;
 	int			line;
 	const char	*filename;
+	bool		is_prototype;
 } FunctionInfo;
 
 typedef struct {

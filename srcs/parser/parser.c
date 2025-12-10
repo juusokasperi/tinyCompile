@@ -369,7 +369,13 @@ static ASTNode	*parse_function(Parser *p)
 
 	consume(p, TOKEN_RPAREN, "Expected ')' after parameters.");
 
-	ASTNode *body = parse_block(p);
+	ASTNode *body = NULL;
+	bool is_prototype = false;
+	if (match(p, TOKEN_SEMICOLON))
+		is_prototype = true;
+	else
+		body = parse_block(p);
+
 	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_FUNCTION,
@@ -377,7 +383,8 @@ static ASTNode	*parse_function(Parser *p)
 			.name = func_name,
 			.params = params,
 			.param_count = param_count,
-			.body = body
+			.body = body,
+			.is_prototype = is_prototype
 		}
 	};
 	return (node);
