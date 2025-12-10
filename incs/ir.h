@@ -22,10 +22,17 @@ typedef enum {
 	IR_MUL,
 	IR_DIV,
 
+	IR_LABEl,	// target for jumps
+	IR_JMP,		// unconditional jump
+	IR_JZ,		// jump if zero
+	IR_JNZ,		// jump if not zero
+
 	IR_NEG,
 	IR_NOT,
 
 	IR_RET,
+	IR_CALL,
+	IR_ARG,
 } IROpcode;
 
 typedef struct {
@@ -34,6 +41,8 @@ typedef struct {
 	size_t		src_1;
 	size_t		src_2;
 	int64_t		imm;	// Immediate value for IR_CONST
+	StringView	func_name;
+	size_t		label_id;
 } IRInstruction;
 
 # define IR_CHUNK_SIZE 64 
@@ -47,10 +56,11 @@ struct IRChunk {
 };
 
 typedef struct {
-	IRChunk	*head;
-	IRChunk	*tail;
-	size_t	total_count;
-	size_t	vreg_count;
+	IRChunk		*head;
+	IRChunk		*tail;
+	size_t		total_count;
+	size_t		vreg_count;
+	StringView	name;
 } IRFunction;
 
 Symbol* symtab_lookup(SymbolTable *st, StringView name);
