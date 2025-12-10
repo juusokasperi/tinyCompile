@@ -23,15 +23,33 @@ static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable
 {
 	if (!node)
 		return (0);
+
+	if (node->type == AST_CALL)
+	{
+		for (size_t i = 0; i < node->call.arg_count; ++i)
+		{
+			size_t arg_reg = gen_expression(a, f, node->call.args[i], symtab);
+			IRInstruction arg_inst = {
+				.opcode = IR_ARG,
+				.src_1 = arg_reg,
+				.imm = i
+			};
+			emit(a, f, arg_inst);
+		}
+
+		size_t result_reg = f->vreg_count++;
+		IRInstruction call_inst = {
+			.opcode = IR_CALL,
+			.dest = result_reg,
+			.func_name = node->call.function_name
+		};
+		emit(a, f, call_inst);
+		return (result_reg);
+	}
 	if (node->type == AST_IDENTIFIER)
 	{
         Symbol *sym = symtab_lookup(symtab, node->identifier.name);
-        if (!sym)
-		{
-            fprintf(stderr, "Undefined variable\n");
-            return (0);
-        }
-        return (sym->vreg);
+		return (sym ? sym->vreg : 0);
     }
     
 	if (node->type == AST_NUMBER)
@@ -137,6 +155,14 @@ IRFunction *ir_gen(Arena *a, ASTNode *root)
 
 	if (root->type == AST_FUNCTION)
 	{
+		f->name = root->function.name;
+		for (size_t i = 0; i < root->function.param_count; i++)
+		{
+            Parameter *param = &root->function.params[i];
+            size_t vreg = f->vreg_count++;
+            symtab_add(&symtab, param->name, vreg);
+        }
+
 		ASTNode *body = root->function.body;
 		if (body && body->type == AST_BLOCK)
 		{
