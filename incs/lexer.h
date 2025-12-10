@@ -39,6 +39,8 @@ typedef enum {
 	TOKEN_LBRACE,
 	TOKEN_RBRACE,
 
+	TOKEN_COMMA,
+
 	TOKEN_ERROR,
 } TokenType;
 
