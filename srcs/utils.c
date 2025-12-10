@@ -5,7 +5,8 @@ int safe_open(char *file)
 	int fd = open(file, O_RDONLY);
 	if (fd == -1)
 	{
-		perror("error opening file");
+		perror(BOLD_RED "  > error opening file" RESET);
+		printf("\n");
 		exit(1);
 	}
 	return (fd);
@@ -17,7 +18,8 @@ FileMap map_input(int fd)
 	struct stat	stat_buf;
 	if (fstat(fd, &stat_buf) == -1)
 	{
-		perror("fstat failed");
+		perror(BOLD_RED "  > fstat failed" RESET);
+		printf("\n");
 		close(fd);
 		return (res);
 	}
@@ -36,7 +38,8 @@ FileMap map_input(int fd)
 	close(fd);
 	if (map == MAP_FAILED)
 	{
-		perror("mmap failed");
+		perror(BOLD_RED "  > mmap failed" RESET);
+		printf("\n");
 		return (res);
 	}
 

@@ -118,6 +118,7 @@ int main(int argc, char **argv)
 	if (!arena_set_prot(&jit_arena, PROT_READ | PROT_EXEC))
 	{
 		perror(BOLD_RED "  > failed to set executable permissions" RESET);
+		printf("\n");
 		cleanup_files(&ctx);
 		arena_free(&ast_arena);
 		arena_free(&jit_arena);
