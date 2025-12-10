@@ -6,6 +6,7 @@
 #include "compile.h"
 #include "layout.h"
 #include "utils.h"
+#include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
 
@@ -18,12 +19,28 @@ static void cleanup_files(CompilationContext *ctx)
 	}
 }
 
+static bool check_file_names(int argc, char **argv)
+{
+	for (int i = 1; i < argc; ++i)
+	{
+		int len = strlen(argv[i]);
+		if (len < 2 || strncmp(argv[i] + len - 2, ".c", 2) != 0)
+			return (false);
+	}
+	return (true);
+}
+
 int main(int argc, char **argv)
 {
 	print_header();
 	if (argc < 2)
 	{
 		fprintf(stderr, "Usage: %s <file1.c> [file2.c ...]\n", argv[0]);
+		return (1);
+	}
+	if (!check_file_names(argc, argv))
+	{
+		fprintf(stderr, BOLD_RED "  > tinyCompile supports only files with .c extension\n\n" RESET);
 		return (1);
 	}
 
