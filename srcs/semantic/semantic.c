@@ -131,6 +131,32 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 			}
 			return (true);
 		}
+		case AST_CALL:
+		{
+			FunctionInfo *func = global_lookup_function(sa->global, node->call.function_name);
+			if (!func)
+			{
+				char *msg = arena_sprintf(sa->arena, "call to undefined function '%.*s'", (int)node->call.function_name.len, node->call.function_name.start);
+				error_list_add(sa->errors, sa->arena, msg, sa->filename, node->line, node->column);
+				return (false);
+			}
+
+			if (node->call.arg_count != func->param_count)
+			{
+				char *msg = arena_sprintf(sa->arena, "function '%.*s' expects %zu arguments, got %zu",
+						(int)node->call.function_name.len, node->call.function_name.start, func->param_count, node->call.arg_count);
+				error_list_add(sa->errors, sa->arena, msg, sa->filename, node->line, node->column);
+				return (false);
+			}
+
+			bool all_ok = true;
+			for (size_t i = 0; i < node->call.arg_count; ++i)
+			{
+				if (!analyze_expression(sa, node->call.args[i]))
+					all_ok = false;
+			}
+			return (all_ok);
+		}
 		case AST_ADD:
 		case AST_SUB:
 		case AST_MUL:
@@ -200,10 +226,18 @@ void global_scope_init(GlobalScope *global)
 	global->function_count = 0;
 }
 
-bool global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
-		StringView name, DataType return_type, Parameter *params, size_t param_count,
-		int line, const char *filename)
+bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
+                				ASTNode *func_node, const char *filename)
 {
+	if (!func_node || func_node->type != AST_FUNCTION)
+		return (false);
+
+	StringView name = func_node->function.name;
+	Parameter *params = func_node->function.params;
+	size_t param_count = func_node->function.param_count;
+	int line = func_node->line;
+	DataType return_type = TYPE_INT32;
+
 	for (size_t i = 0; i < global->function_count; ++i)
 	{
 		if (sv_eq(global->functions[i].name, name))
@@ -262,6 +296,12 @@ bool semantic_analyze(Arena *a, ASTNode *root, ErrorList *errors,
 	bool result = true;
 	if (root->type == AST_FUNCTION)
 	{
+		for (size_t i = 0; i < root->function.param_count; ++i)
+		{
+			Parameter *param = &root->function.params[i];
+			if (!scope_declare(&sa, param->name, param->type, root->line))
+				result = false;
+		}
 		ASTNode *body = root->function.body;
 		if (body && body->type == AST_BLOCK)
 		{
