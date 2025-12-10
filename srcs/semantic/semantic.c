@@ -203,7 +203,28 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 			return (analyze_expression(sa, node->assignment.value));
 		}
 		case AST_RETURN:
-			return (analyze_expression(sa, node->return_stmt.expression));
+		{
+			if (node->return_stmt.expression)
+			{
+				if (sa->current_return_type == TYPE_VOID)
+				{
+					error_list_add(sa->errors, sa->arena, "void function should not return a value",
+							sa->filename, node->line, node->column);
+					return (false);
+				}
+				return (analyze_expression(sa, node->return_stmt.expression));
+			}
+			else
+			{
+				if (sa->current_return_type != TYPE_VOID)
+				{
+					error_list_add(sa->errors, sa->arena, "non-void function must return a value",
+							sa->filename, node->line, node->column);
+					return (false);
+				}
+				return (true);
+			}
+		}
 		case AST_BLOCK:
 		{
 			scope_enter(sa);
@@ -289,7 +310,8 @@ bool semantic_analyze(Arena *a, ASTNode *root, ErrorList *errors,
 		.errors = errors,
 		.filename = filename,
 		.global = global,
-		.current = NULL
+		.current = NULL,
+		.current_return_type = TYPE_INT32,
 	};
 
 	scope_enter(&sa);

@@ -143,7 +143,10 @@ static ASTNode	*parse_statement(Parser *p)
 
 	if (match(p, TOKEN_RETURN))
 	{
-        ASTNode *expr = parse_expression(p, PREC_NONE);
+		ASTNode *expr = NULL;
+		
+		if (!check(p, TOKEN_SEMICOLON))
+			expr = parse_expression(p, PREC_NONE);
         consume(p, TOKEN_SEMICOLON, "Expected ';' after return");
         
         ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));

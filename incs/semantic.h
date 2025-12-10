@@ -57,6 +57,7 @@ typedef struct {
 	ErrorList	*errors;
 	const char	*filename;
 	GlobalScope	*global;
+	DataType	current_return_type;
 } SemanticAnalyzer;
 
 bool	semantic_analyze(Arena *a, ASTNode *root, ErrorList *errors, const char *filename, GlobalScope *global);
