@@ -1,6 +1,7 @@
 #ifndef PARSER_H
 # define PARSER_H
 
+# include "shared_types.h"
 # include "lexer.h"
 # include "ast.h"
 # include "memarena.h"
