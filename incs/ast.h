@@ -30,6 +30,8 @@ typedef enum {
 	AST_RETURN,
 
 	AST_FUNCTION,
+	AST_TRANSLATION_UNIT,
+	AST_CALL,
 } ASTNodeType;
 
 typedef enum {
@@ -112,6 +114,17 @@ struct ASTNode {
 			size_t 		param_count;
 			ASTNode		*body;
 		} function;
+
+		struct {
+			ASTNode **declarations;
+			size_t	count;
+		} translation_unit;
+
+		struct {
+			StringView function_name;
+			ASTNode **args;
+			size_t arg_count;
+		} call;
 	};
 };
 
