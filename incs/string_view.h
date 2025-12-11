@@ -1,27 +1,13 @@
-#ifndef SHARED_TYPES_H
-# define SHARED_TYPES_H
+#ifndef STRING_VIEW_H
+# define STRING_VIEW_H
 
-# include <unistd.h>
-# include <stdbool.h>
-# include <string.h>
-# include "memarena.h"
-
-# define MAX_VARS 256
-# define MAX_FUNCS 256
-# define MAX_ARGS 16
-# define MAX_CALL_SITES 1024
-/* Shared types between lexer and AST */
+#include <string.h>
+#include "memarena.h"
 
 typedef struct {
 	const char *start;
 	size_t len;
 } StringView;
-
-typedef struct {
-	const char	*data;
-	size_t 		length;
-	const char	*name;
-} FileMap;
 
 /* StringView functions */
 static inline bool sv_eq(StringView a, StringView b)
@@ -56,4 +42,5 @@ static inline int64_t sv_to_int(Arena *a, StringView sv)
     return result;
 }
 
-#endif
+
+#endif // STRING_VIEW_H

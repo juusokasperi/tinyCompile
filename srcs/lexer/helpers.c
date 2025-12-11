@@ -17,7 +17,6 @@ void lexer_init(Lexer *l, FileMap *file)
 	l->column = 1;
 }
 
-
 /**
  * @brief Looks at the next char in the file we are tokenizing without advancing
  *

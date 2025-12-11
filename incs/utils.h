@@ -9,9 +9,14 @@
 # include <errno.h>
 # include <stdio.h>
 # include <stdlib.h>
-# include "shared_types.h"
 # include "ast.h"
 # include "layout.h"
+
+typedef struct {
+	const char	*data;
+	size_t 		length;
+	const char	*name;
+} FileMap;
 
 int safe_open(char *file);
 FileMap map_input(int fd);

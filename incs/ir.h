@@ -3,7 +3,8 @@
 
 # include "memarena.h"
 # include "ast.h"
-# include "shared_types.h"
+# include "string_view.h"
+# include "defines.h"
 
 typedef struct {
 	StringView	name;
@@ -11,7 +12,7 @@ typedef struct {
 } Symbol;
 
 typedef struct {
-	Symbol	symbols[256];
+	Symbol	symbols[MAX_SYMBOLS];
 	size_t	count;
 } SymbolTable;
 
@@ -44,8 +45,6 @@ typedef struct {
 	StringView	func_name;
 	size_t		label_id;
 } IRInstruction;
-
-# define IR_CHUNK_SIZE 64 
 
 typedef struct IRChunk IRChunk;
 

@@ -3,7 +3,8 @@
 
 # include <stdint.h>
 # include <stdbool.h>
-# include "shared_types.h"
+# include "defines.h"
+# include "string_view.h"
 # include "ir.h"
 # include "memarena.h"
 

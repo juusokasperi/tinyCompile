@@ -3,7 +3,8 @@
 
 # include "ast.h"
 # include "memarena.h"
-# include "shared_types.h"
+# include "defines.h"
+# include "string_view.h"
 # include <stdbool.h>
 
 typedef struct CompilationUnit CompilationUnit;

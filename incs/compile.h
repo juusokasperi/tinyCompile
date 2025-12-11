@@ -5,7 +5,6 @@
 # include "lexer.h"
 # include "parser.h"
 # include "memarena.h"
-# include "shared_types.h"
 # include "semantic.h"
 # include <stdbool.h>
 

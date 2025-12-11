@@ -1,7 +1,7 @@
 #ifndef AST_H 
 # define AST_H 
 
-# include "shared_types.h"
+# include "string_view.h"
 
 typedef enum {
 	AST_NUMBER,

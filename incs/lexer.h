@@ -3,7 +3,8 @@
 
 # include <ctype.h>
 # include <stdbool.h>
-# include "shared_types.h"
+# include "utils.h"
+# include "string_view.h"
 
 typedef enum {
 	TOKEN_EOF,
