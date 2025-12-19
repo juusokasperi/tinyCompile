@@ -6,6 +6,7 @@
 # include "string_view.h"
 # include "defines.h"
 # include <stdbool.h>
+#include <stddef.h>
 
 typedef struct {
 	StringView	name;
@@ -58,6 +59,7 @@ typedef struct {
 	IRChunk		*tail;
 	size_t		total_count;
 	size_t		vreg_count;
+	size_t		label_count;
 	StringView	name;
 } IRFunction;
 
