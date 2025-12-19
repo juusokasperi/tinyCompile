@@ -15,7 +15,7 @@ typedef struct {
 } Symbol;
 
 typedef struct {
-	Symbol	entries[SYMTAB_SIZE];
+	Symbol	entries[SYMBOL_TABLE_SIZE];
 } SymbolTable;
 
 typedef enum {

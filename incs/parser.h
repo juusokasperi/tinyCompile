@@ -1,19 +1,22 @@
 #ifndef PARSER_H
 # define PARSER_H
 
+# include "error_handler.h"
 # include "lexer.h"
 # include "ast.h"
 # include "memarena.h"
-# include "defines.h"	// for MAX_ARGS
+# include "defines.h"
 # include <stdbool.h>
+# include <stddef.h>
 
 typedef struct {
-	Lexer	*lexer;
-	Arena	*arena;
-	Token	current;
-	Token	next;
-	bool	had_error;
-	bool	panic_mode;
+	Lexer			*lexer;
+	Arena			*arena;
+	ErrorContext	*errors;
+	Token			current;
+	Token			next;
+	bool			panic_mode;
+	size_t			expr_depth;
 } Parser;
 
 typedef enum {

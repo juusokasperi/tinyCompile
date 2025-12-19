@@ -23,7 +23,7 @@ void lexer_init(Lexer *l, FileMap *file)
  * @param l 
  * @return next character	
  */
-char peek(Lexer *l)
+char lexer_peek(Lexer *l)
 {
 	if (l->curr >= l->end)
 		return ('\0');
@@ -35,14 +35,14 @@ char peek(Lexer *l)
  *
  * @param l 
  */
-char peek_next(Lexer *l)
+char lexer_peek_next(Lexer *l)
 {
 	if (l->curr + 1 >= l->end)
 		return ('\0');
 	return (*(l->curr + 1));
 }
 
-char advance(Lexer *l)
+char lexer_advance(Lexer *l)
 {
 	l->curr++;
 	l->column++;
@@ -54,7 +54,7 @@ char advance(Lexer *l)
  *
  * @param l 
  */
-void skip_whitespace(Lexer *l)
+void lexer_skip_whitespace(Lexer *l)
 {
 	while (l->curr < l->end)
 	{
@@ -64,12 +64,12 @@ void skip_whitespace(Lexer *l)
 			case ' ':
 			case '\r':
 			case '\t':
-				advance(l);
+				lexer_advance(l);
 				break;
 			case '\n':
 				l->line++;
 				l->column = 1;
-				advance(l);
+				lexer_advance(l);
 				break;
 			case '/':
 				if (is_comment(l))
@@ -77,8 +77,8 @@ void skip_whitespace(Lexer *l)
 				else				// is division
 					return;
 			case '#':
-				while (peek(l) != '\n' && l->curr < l->end)
-					advance(l);
+				while (lexer_peek(l) != '\n' && l->curr < l->end)
+					lexer_advance(l);
 				break;
 			default:
 				return;
@@ -89,31 +89,31 @@ void skip_whitespace(Lexer *l)
 static inline bool is_comment(Lexer *l)
 {
 	bool result = false;
-	if (peek_next(l) == '/')
+	if (lexer_peek_next(l) == '/')
 	{
 		result = true;
-		while (peek(l) != '\n' && l->curr < l->end)
-			advance(l);
+		while (lexer_peek(l) != '\n' && l->curr < l->end)
+			lexer_advance(l);
 	}
-	else if (peek_next(l) == '*')
+	else if (lexer_peek_next(l) == '*')
 	{
 		result = true;
-		advance(l);
-		advance(l);
+		lexer_advance(l);
+		lexer_advance(l);
 		while (l->curr < l->end)
 		{
-			if (peek(l) == '*' && peek_next(l) == '/')
+			if (lexer_peek(l) == '*' && lexer_peek_next(l) == '/')
 			{
-				advance(l);
-				advance(l);
+				lexer_advance(l);
+				lexer_advance(l);
 				break;
 			}
-			if (peek(l) == '\n')
+			if (lexer_peek(l) == '\n')
 			{
 				l->line++;
 				l->column = 1;
 			}
-			advance(l);
+			lexer_advance(l);
 		}
 	}
 	return (result);
@@ -127,7 +127,7 @@ static inline bool is_comment(Lexer *l)
  * @param text 
  * @return new token for parser
  */
-Token	make_token(Lexer *l, TokenType type, StringView text)
+Token	lexer_make_token(Lexer *l, TokenType type, StringView text)
 {
 	Token result = {
 		.type = type,
@@ -145,7 +145,7 @@ Token	make_token(Lexer *l, TokenType type, StringView text)
  * @param type 
  * @return new token for parser
  */
-Token	make_token_no_sv(Lexer *l, TokenType type)
+Token	lexer_make_token_no_sv(Lexer *l, TokenType type)
 {
 	Token result = {
 		.type = type,

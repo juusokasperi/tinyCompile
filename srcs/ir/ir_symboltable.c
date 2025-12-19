@@ -20,12 +20,12 @@ static uint32_t	hash_sv(StringView sv)
 Symbol *symtab_lookup(SymbolTable *st, StringView name)
 {
 	uint32_t	hash = hash_sv(name);
-	uint32_t	idx = hash & (SYMTAB_SIZE - 1);
+	uint32_t	idx = hash & (SYMBOL_TABLE_SIZE - 1);
 	size_t		curr;
 
-	for (size_t i = 0; i < SYMTAB_SIZE; ++i)
+	for (size_t i = 0; i < SYMBOL_TABLE_SIZE; ++i)
 	{
-		curr = (idx + i) & (SYMTAB_SIZE - 1);
+		curr = (idx + i) & (SYMBOL_TABLE_SIZE - 1);
 		if (!st->entries[curr].occupied)
 			return (NULL);
 		if (sv_eq(st->entries[curr].name, name))
@@ -37,12 +37,12 @@ Symbol *symtab_lookup(SymbolTable *st, StringView name)
 void symtab_add(SymbolTable *st, StringView name, size_t vreg)
 {
 	uint32_t	hash = hash_sv(name);
-	uint32_t	idx = hash & (SYMTAB_SIZE - 1);
+	uint32_t	idx = hash & (SYMBOL_TABLE_SIZE - 1);
 	size_t		curr;
 
-	for (size_t i = 0; i < SYMTAB_SIZE; ++i)
+	for (size_t i = 0; i < SYMBOL_TABLE_SIZE; ++i)
 	{
-		curr = (idx + i) & (SYMTAB_SIZE - 1);
+		curr = (idx + i) & (SYMBOL_TABLE_SIZE - 1);
 		if (!st->entries[curr].occupied)
 		{
 			st->entries[curr].name = name;
@@ -56,6 +56,6 @@ void symtab_add(SymbolTable *st, StringView name, size_t vreg)
 			return;
 		}
 	}
-	fprintf(stderr, "Fatal: Symbol table overflow (increase SYMTAB_SIZE)\n");
+	fprintf(stderr, "Fatal: Symbol table overflow (increase SYMBOL_TABLE_SIZE)\n");
 	exit(1);
 }

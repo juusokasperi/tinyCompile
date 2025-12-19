@@ -5,25 +5,11 @@
 # include "memarena.h"
 # include "defines.h"
 # include "string_view.h"
+# include "error_handler.h"
 # include <stdbool.h>
 # include <stddef.h>
 
 typedef struct CompilationUnit CompilationUnit;
-typedef struct ErrorNode ErrorNode;
-
-struct ErrorNode {
-	const char	*msg;
-	const char	*filename;
-	int			line;
-	int			column;
-	ErrorNode	*next;
-};
-
-typedef struct {
-	ErrorNode	*head;
-	ErrorNode	*tail;
-	size_t		count;
-} ErrorList;
 
 typedef struct {
 	StringView	name;
@@ -36,7 +22,7 @@ typedef struct Scope Scope;
 
 struct Scope {
 	Scope	*parent;
-	VarInfo	vars[MAX_VARS];
+	VarInfo	vars[MAX_VARS_PER_SCOPE];
 	size_t	var_count;
 };
 
@@ -51,37 +37,33 @@ typedef struct {
 } FunctionInfo;
 
 typedef struct {
-	FunctionInfo	functions[MAX_FUNCS];
+	FunctionInfo	functions[MAX_FUNCTION_COUNT];
 	size_t			function_count;
 } GlobalScope;
 
 typedef struct {
-	Scope		*current;
-	Arena		*arena;
-	ErrorList	*errors;
-	const char	*filename;
-	GlobalScope	*global;
-	DataType	current_return_type;
+	Scope			*current;
+	Arena			*arena;
+	ErrorContext	*errors;
+	const char		*filename;
+	GlobalScope		*global;
+	DataType		current_return_type;
 
-	StringView	visible_funcs[MAX_FUNCS];
-	size_t		visible_count;
+	StringView		visible_funcs[MAX_FUNCTION_COUNT];
+	size_t			visible_count;
 } SemanticAnalyzer;
 
-bool	semantic_analyze(Arena *a, CompilationUnit *unit, ErrorList *errors, GlobalScope *global);
+bool	semantic_analyze(Arena *a, CompilationUnit *unit, ErrorContext *errors, GlobalScope *global);
 
-void	global_scope_init(GlobalScope *globa);
-bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
-                ASTNode *func_node, const char *filename);
+void	semantic_global_init(GlobalScope *global);
+bool	semantic_global_declare_function(GlobalScope *global, ErrorContext *errors, 
+			ASTNode *func_node, const char *filename);
 
-FunctionInfo	*global_lookup_function(GlobalScope *global, StringView name);
+FunctionInfo	*semantic_global_lookup_function(GlobalScope *global, StringView name);
 
-void	error_list_init(ErrorList *list);
-void	error_list_add(ErrorList *list, Arena *a, const char *msg, const char *filename, int line, int col);
-void	error_list_print(ErrorList *list);
-
-Scope	*scope_enter(SemanticAnalyzer *sa);
-void	scope_exit(SemanticAnalyzer *sa);
-VarInfo	*scope_lookup(Scope *scope, StringView name);
-bool	scope_declare(SemanticAnalyzer *sa, StringView name, DataType type, int line);
+Scope	*semantic_scope_enter(SemanticAnalyzer *sa);
+void	semantic_scope_exit(SemanticAnalyzer *sa);
+VarInfo	*semantic_scope_lookup(Scope *scope, StringView name);
+bool	semantic_scope_declare(SemanticAnalyzer *sa, StringView name, DataType type, int line);
 
 #endif
