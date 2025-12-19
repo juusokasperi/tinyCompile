@@ -1,4 +1,6 @@
 #include "parser.h"
+#include "ast.h"
+#include "lexer.h"
 #include <stdio.h>
 
 static ASTNode	*parse_expression(Parser *p, Precedence precedence);
@@ -62,13 +64,22 @@ static Precedence	get_token_precedence(TokenType type)
 {
 	switch (type)
 	{
-		case TOKEN_EQUAL:	return PREC_ASSIGNMENT;
-		case TOKEN_LPAREN:	return PREC_CALL;
+		case TOKEN_EQUAL:			return PREC_ASSIGNMENT;
+		case TOKEN_LPAREN:			return PREC_CALL;
+
+		case TOKEN_EQUAL_EQUAL:
+		case TOKEN_BANG_EQUAL: 		return PREC_EQUALITY;
+
+		case TOKEN_LESS:
+		case TOKEN_LESS_EQUAL:
+		case TOKEN_GREATER:
+		case TOKEN_GREATER_EQUAL:	return PREC_COMPARISON;
+
 		case TOKEN_PLUS:
-		case TOKEN_MINUS:	return PREC_TERM;
+		case TOKEN_MINUS:			return PREC_TERM;
 		case TOKEN_STAR:
-		case TOKEN_SLASH:	return PREC_FACTOR;
-		default:			return PREC_NONE;
+		case TOKEN_SLASH:			return PREC_FACTOR;
+		default:					return PREC_NONE;
 	}
 }
 
@@ -261,6 +272,12 @@ static ASTNode	*parse_infix(Parser *p, ASTNode	*left)
 		case TOKEN_MINUS:
 		case TOKEN_STAR:
 		case TOKEN_SLASH:
+		case TOKEN_EQUAL_EQUAL:
+		case TOKEN_BANG_EQUAL:
+		case TOKEN_LESS:
+		case TOKEN_LESS_EQUAL:
+		case TOKEN_GREATER:
+		case TOKEN_GREATER_EQUAL:
 			return (parse_binary(p, left));
 		default:
 			return (left);
@@ -322,10 +339,16 @@ static ASTNode	*parse_binary(Parser *p, ASTNode *left)
 
 	switch (operator_type)
 	{
-		case TOKEN_PLUS:	node->type = AST_ADD; break;
-		case TOKEN_MINUS:	node->type = AST_SUB; break;
-		case TOKEN_STAR:	node->type = AST_MUL; break;
-		case TOKEN_SLASH:	node->type = AST_DIV; break;
+		case TOKEN_PLUS:			node->type = AST_ADD; break;
+		case TOKEN_MINUS:			node->type = AST_SUB; break;
+		case TOKEN_STAR:			node->type = AST_MUL; break;
+		case TOKEN_SLASH:			node->type = AST_DIV; break;
+		case TOKEN_EQUAL_EQUAL:		node->type = AST_EQUAL; break;
+		case TOKEN_BANG_EQUAL:		node->type = AST_NOT_EQUAL; break;
+		case TOKEN_LESS:			node->type = AST_LESS; break;
+		case TOKEN_LESS_EQUAL:		node->type = AST_LESS_EQUAL; break;
+		case TOKEN_GREATER:			node->type = AST_GREATER; break;
+		case TOKEN_GREATER_EQUAL:	node->type = AST_GREATER_EQUAL; break;
 		default: break;
 	}
 
