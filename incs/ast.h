@@ -129,4 +129,6 @@ struct ASTNode {
 	};
 };
 
+void	print_ast(ASTNode *node, int indent);
+
 #endif

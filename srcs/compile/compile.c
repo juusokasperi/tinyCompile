@@ -2,6 +2,8 @@
 #include "layout.h"
 #include "utils.h"
 #include <stdio.h>
+#include "lexer.h"
+#include "parser.h"
 
 void compile_ctx_init(CompilationContext *ctx, Arena *arena, size_t file_count)
 {

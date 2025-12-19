@@ -6,6 +6,7 @@
 # include "defines.h"
 # include "string_view.h"
 # include <stdbool.h>
+# include <stddef.h>
 
 typedef struct CompilationUnit CompilationUnit;
 typedef struct ErrorNode ErrorNode;

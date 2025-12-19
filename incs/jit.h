@@ -1,8 +1,9 @@
 #ifndef JIT_H
 # define JIT_H
 
-# include <stdint.h>
 # include <stdbool.h>
+# include <stdint.h>
+# include <stddef.h>
 # include "defines.h"
 # include "string_view.h"
 # include "ir.h"

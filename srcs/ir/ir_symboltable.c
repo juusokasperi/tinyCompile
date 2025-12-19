@@ -2,7 +2,8 @@
 #include "ir.h"
 #include "string_view.h"
 #include <stddef.h>
-#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static uint32_t	hash_sv(StringView sv)
 {
