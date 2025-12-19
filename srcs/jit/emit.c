@@ -1,4 +1,16 @@
 #include "jit.h"
+#include <stddef.h>
+#include <stdint.h>
+
+static uint8_t get_rex(X86Reg dst, X86Reg src)
+{
+	uint8_t	rex = REX_W;
+	if (src >= 8)
+		rex |= 0x04;
+	if (dst >= 8)
+		rex |= 0x01;
+	return (rex);
+}
 
 void emit_u8(uint8_t **buf, size_t *count, uint8_t byte)
 {
@@ -77,13 +89,48 @@ void emit_imul_r64(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
 // "mov dst, src"
 void emit_mov_reg_reg(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
 {
-    uint8_t rex = REX_W;
-    
-    // Handle R8-R15 (extended registers)
-    if (src >= 8) rex |= 0x04;  // REX.R
-    if (dst >= 8) rex |= 0x01;  // REX.B
-    
+    uint8_t	rex = get_rex(dst, src);
+
     emit_u8(buf, cnt, rex);
     emit_u8(buf, cnt, MOV_RM_R);
     emit_u8(buf, cnt, MOD_REG | ((src & 7) << 3) | (dst & 7));
+}
+
+void emit_cmp(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
+{
+	uint8_t	rex = get_rex(dst, src);
+
+	emit_u8(buf, cnt, rex);
+	emit_u8(buf, cnt, ALU_CMP);
+	emit_u8(buf, cnt, MOD_REG | ((src & 7) << 3) | (dst & 7));
+}
+
+void emit_setcc(uint8_t **buf, size_t *cnt, X86Condition cc, X86Reg dst)
+{
+	uint8_t	rex;
+
+	if (dst >= 8 || (dst >= 4 && dst <= 7))
+	{
+		rex = 0x40;
+		if (dst >= 8)
+			rex |= 0x01;
+		emit_u8(buf, cnt, rex);
+	}
+	emit_u8(buf, cnt, OP_PREFIX_0F);
+	emit_u8(buf, cnt, 0x90 | cc);
+	emit_u8(buf, cnt, MOD_REG | (0 << 3) | (dst & 7));
+}
+
+void emit_movzx(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
+{
+	uint8_t	rex = REX_W;
+
+	if (dst >= 8)
+		rex |= 0x04;
+	if (src >= 8)
+		rex |= 0x01;
+	emit_u8(buf, cnt, rex);
+	emit_u8(buf, cnt, OP_PREFIX_0F);
+	emit_u8(buf, cnt, OP_MOVZX);
+	emit_u8(buf, cnt, MOD_REG | ((dst & 7) << 3) | (src & 7));
 }

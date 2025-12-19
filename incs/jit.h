@@ -28,6 +28,15 @@ typedef enum {
 } X86Prefix;
 
 typedef enum {
+	CC_E = 0x4,		// Equal / Zero
+	CC_NE = 0x5,	// Not Equal / Not Zero
+	CC_L = 0xC,		// Less
+	CC_GE = 0xD,	// Greater or Equal
+	CC_LE = 0xE,	// Less or equal
+	CC_G = 0xF,		// Greater
+} X86Condition;
+
+typedef enum {
 	ALU_ADD = 0x01,
 	ALU_OR = 0x09,
 	ALU_AND = 0x21,
@@ -35,6 +44,7 @@ typedef enum {
 	ALU_XOR = 0x31,
 	ALU_CMP = 0x39,
 	ALU_IMM = 0x81,		// 32-bit immediate
+	ALU_IMM8 = 0x83,	// Add/Cmp/Sub r/m, imm8
 
 	MOV_RM_R = 0x89,	// Store: Move register to r/m
 	MOV_R_RM = 0x8B,	// Load: Move r/m to register
@@ -46,6 +56,10 @@ typedef enum {
 	OP_LEAVE = 0xC9,	// Leave (mov rsp, rbp; pop rbp)
 	OP_CALL_IND = 0xFF,	// Call indirect (call rax)
 	
+	OP_JMP_REL32 = 0xE9,	// JMP rel32
+	OP_PREFIX_0F = 0x0F,	// Prefix for 2-byte opcodes
+	OP_MOVZX = 0xB6,		// MOVZX r64, r/m8 (w/ 0f prefix)
+
 	OP_CQO = 0x99,		// Sign extend (RAX -> RDX)
 	OP_IDIV = 0xF7,		// Integer division
 	OP_IMUL_1 = 0x0F,
@@ -61,10 +75,11 @@ typedef enum {
 
 typedef enum {
 	EXT_ADD = 0,
-	EXT_IDIV = 7,
+	EXT_CALL = 2,
 	EXT_NEG = 3,
 	EXT_SUB = 5,
-	EXT_CALL = 2,
+	EXT_IDIV = 7,
+	EXT_CMP = 7,
 } X86Extension;
 
 typedef struct {
@@ -73,6 +88,14 @@ typedef struct {
 } JITResult;
 
 typedef int64_t (*JITFunc)(void);
+
+typedef struct Patch Patch;
+
+struct Patch {
+	size_t	label_id;
+	uint8_t	*loc;
+	Patch	*next;
+};
 
 typedef struct {
 	StringView	name;
@@ -107,6 +130,10 @@ typedef struct {
 	FunctionRegistry	registry;
 	CallSiteList		call_sites;
 	PendingCall			pending_call;
+
+	uint8_t				*label_offset[MAX_LABELS];
+	bool				label_defined[MAX_LABELS];
+	Patch				*patches;
 } JITContext;
 
 void		jit_ctx_init(JITContext *ctx, Arena *a);
@@ -122,5 +149,8 @@ void		emit_mov_imm(uint8_t **buf, size_t *cnt, X86Reg dst, uint64_t imm);
 void		emit_alu(uint8_t **buf, size_t *cnt, X86Opcode op, X86Reg dst, X86Reg src);
 void		emit_imul_r64(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void        emit_mov_reg_reg(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void		emit_cmp(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void		emit_movzx(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void		emit_setcc(uint8_t **buf, size_t *cnt, X86Condition cc, X86Reg dst);
 
 #endif
