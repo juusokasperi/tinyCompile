@@ -1,15 +1,15 @@
 /*	IR Opcode X Macro Definitions
 *
 *	Usage:
-*		#define X_OP(opcode, name, encoder)
+*		#define X_OP(opcode, name, fmt, encoder)
 *		#include "ir_ops.def"
 *		#undef X_OP
 *
 *	Parameters:
 *	opcode	- enum name (IR_CONST, IR_ADD etc)
 *	name	- string representation for printing
-*	format
-*	encoder	- function pointer fot JIT encoding
+*	fmt		- instruction format specifier
+*	encoder	- function pointer for JIT encoding
 */
 
 // Math - Binary
