@@ -161,7 +161,7 @@ bool	validate_integer_literal(const char *text, size_t len, int64_t *out_value, 
 	if (errno == ERANGE)
 	{
 		error_lexer(errors, filename, line, 0,
-				"Integer literal out of range. %.*s", (int)len, text);
+				"Integer literal out of range: %.*s", (int)len, text);
 		return (false);
 	}
 	if (endptr != text + len)
