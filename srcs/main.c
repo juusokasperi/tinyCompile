@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 			{
 				fprintf(stderr, BOLD_RED "  > compilation failed\n" RESET);
 				error_fatal(&errors, unit->file.name, func->line, 0,
-						"JIT compilation failed for funtion '%.*s'",
+						"JIT compilation failed for function '%.*s'",
 						(int)func->function.name.len, func->function.name.start);
 				goto cleanup;
 			}
