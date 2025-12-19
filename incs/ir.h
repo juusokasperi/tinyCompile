@@ -5,15 +5,16 @@
 # include "ast.h"
 # include "string_view.h"
 # include "defines.h"
+# include <stdbool.h>
 
 typedef struct {
 	StringView	name;
 	size_t		vreg;
+	bool		occupied;
 } Symbol;
 
 typedef struct {
-	Symbol	symbols[MAX_SYMBOLS];
-	size_t	count;
+	Symbol	entries[SYMTAB_SIZE];
 } SymbolTable;
 
 typedef enum {
