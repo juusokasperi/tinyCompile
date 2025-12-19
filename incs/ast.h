@@ -36,9 +36,9 @@ typedef enum {
 
 typedef enum {
 	TYPE_VOID,
-	TYPE_INT32,
+	TYPE_INT64,
 	TYPE_CHAR,
-	// TYPE_INT64,
+	// TYPE_INT32,
 	// TYPE_UINT32,
 	// TYPE_POINTER
 	// etc..
@@ -128,5 +128,7 @@ struct ASTNode {
 		} call;
 	};
 };
+
+void	print_ast(ASTNode *node, int indent);
 
 #endif

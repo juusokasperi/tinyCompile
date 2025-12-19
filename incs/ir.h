@@ -5,36 +5,35 @@
 # include "ast.h"
 # include "string_view.h"
 # include "defines.h"
+# include <stdbool.h>
 
 typedef struct {
 	StringView	name;
 	size_t		vreg;
+	bool		occupied;
 } Symbol;
 
 typedef struct {
-	Symbol	symbols[MAX_SYMBOLS];
-	size_t	count;
+	Symbol	entries[SYMTAB_SIZE];
 } SymbolTable;
 
 typedef enum {
-	IR_CONST,	// immediate value (x = 5)
-	IR_ADD,
-	IR_SUB,
-	IR_MUL,
-	IR_DIV,
+	FMT_NONE,
+	FMT_BIN,	// dest = src_1 op src_2
+	FMT_UNARY,	// dest = op src_1
+	FMT_IMM,	// dest = imm
+	FMT_CALL,	// dest = call name
+	FMT_ARG,	// arg imm = src_1
+	FMT_JUMP,	// jmp label
+	FMT_BRANCH,	// op src_1, label
+	FMT_LABEL	// label1:
+}	IROpcodeFormat;
 
-	IR_LABEl,	// target for jumps
-	IR_JMP,		// unconditional jump
-	IR_JZ,		// jump if zero
-	IR_JNZ,		// jump if not zero
-
-	IR_NEG,
-	IR_NOT,
-
-	IR_RET,
-	IR_CALL,
-	IR_ARG,
-} IROpcode;
+typedef enum {
+	#define X_OP(opcode, name, fmt, encoder) opcode,
+	#include "ir_ops.def"
+	#undef X_OP
+} 	IROpcode;
 
 typedef struct {
 	IROpcode	opcode;
@@ -62,10 +61,13 @@ typedef struct {
 	StringView	name;
 } IRFunction;
 
-Symbol* symtab_lookup(SymbolTable *st, StringView name);
-void symtab_add(SymbolTable *st, StringView name, size_t vreg);
+Symbol*			symtab_lookup(SymbolTable *st, StringView name);
+void			symtab_add(SymbolTable *st, StringView name, size_t vreg);
 
-IRFunction	*ir_gen(Arena *a, ASTNode *root);
-void ir_print(IRFunction *func);
+IRFunction		*ir_gen(Arena *a, ASTNode *root);
+void			ir_print(IRFunction *func);
+
+const char		*ir_opcode_name(IROpcode op);
+IROpcodeFormat	ir_opcode_format(IROpcode op);
 
 #endif

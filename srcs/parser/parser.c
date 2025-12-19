@@ -361,7 +361,7 @@ static ASTNode	*parse_function(Parser *p)
 				consume(p, TOKEN_IDENTIFIER, "Expected parameter name");
 				params[param_count++] = (Parameter){
 					.name = p->current.text,
-					.type = TYPE_INT32
+					.type = TYPE_INT64
 				};
 			} while (match(p, TOKEN_COMMA));
 		}

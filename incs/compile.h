@@ -2,11 +2,11 @@
 # define COMPILE_H
 
 # include "ast.h"
-# include "lexer.h"
-# include "parser.h"
+# include "file_map.h"
 # include "memarena.h"
 # include "semantic.h"
 # include <stdbool.h>
+# include <stddef.h>
 
 typedef struct CompilationUnit {
 	FileMap	file;

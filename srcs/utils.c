@@ -1,4 +1,12 @@
 #include "utils.h"
+#include "layout.h"
+#include "file_map.h"
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include "ast.h"
 
 int safe_open(char *file)
 {

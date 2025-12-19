@@ -21,7 +21,6 @@
 #ifndef MEMARENA_H
 # define MEMARENA_H
 
-# include <stdint.h>
 # include <stdio.h>
 # include <stdlib.h>
 # include <sys/mman.h>
