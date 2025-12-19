@@ -136,7 +136,7 @@ bool	validate_identifier(const char *name, size_t len, ErrorContext *errors,
 	if (len > 255)
 	{
 		error_semantic(errors, filename, line, 0,
-				"Identifier too long (max 255 characters");
+				"Identifier too long (max 255 characters)");
 		return (false);
 	}
 	return (true);
