@@ -45,8 +45,9 @@ static inline size_t emit_jump(uint8_t *buf, size_t label_id, JITContext *ctx, u
 		return (size + 4);
 	if (label_id < MAX_LABELS && ctx->label_defined[label_id])
 	{
-		uint8_t	*target = (uint8_t *)(uintptr_t)ctx->label_offset[label_id];
-		patch_jump_offset(curr, target);
+		uint8_t	*target = ctx->label_offset[label_id];
+		int32_t rel = (int32_t)(target - (curr + 4));
+		emit_u32(&curr, &size, (uint32_t)rel);
 	}
 	else
 	{
@@ -132,15 +133,15 @@ size_t	encode_jmp(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 size_t	encode_branch(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;
-    uint8_t	*curr = buf;
-    size_t	size = 0;
-    size_t	jmp_size;
+	uint8_t	*curr = buf;
+	size_t	size = 0;
+	size_t	jmp_size;
 	uint8_t	opcode;
 
-    emit_jz_jnz(&curr, &size, inst);
-    opcode = 0x80 | ((inst->opcode == IR_JZ) ? CC_E : CC_NE);
-    jmp_size = emit_jump(curr, inst->label_id, ctx, opcode);
-    return (size + jmp_size);
+	emit_jz_jnz(&curr, &size, inst);
+	opcode = 0x80 | ((inst->opcode == IR_JZ) ? CC_E : CC_NE);
+	jmp_size = emit_jump(curr, inst->label_id, ctx, opcode);
+	return (size + jmp_size);
 }
 
 size_t encode_label(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
@@ -152,7 +153,7 @@ size_t encode_label(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *
 	if (buf)
 	{
 		ctx->label_defined[id] = true;
-		ctx->label_offset[id] = (uint32_t)(uintptr_t)buf;
+		ctx->label_offset[id] = buf;
 		Patch *p = ctx->patches;
 		Patch *prev = NULL;
 		while (p)
@@ -164,7 +165,7 @@ size_t encode_label(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *
 				if (prev)
 					prev->next = next;
 				else
-				 	ctx->patches = next;
+					ctx->patches = next;
 				p = next;
 			}
 			else

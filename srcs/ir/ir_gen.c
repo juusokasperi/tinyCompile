@@ -84,20 +84,20 @@ static size_t gen_binary_op(Arena *a, IRFunction *f, ASTNode *node, SymbolTable 
 
 	switch (node->type)
 	{
-		case AST_ADD: 			op = IR_ADD; break;
-		case AST_SUB: 			op = IR_SUB; break;
-		case AST_MUL: 			op = IR_MUL; break;
-		case AST_DIV: 			op = IR_DIV; break;
-		case AST_EQUAL:         op = IR_EQ; break;
-        case AST_NOT_EQUAL:     op = IR_NEQ; break;
-        case AST_LESS:          op = IR_LT; break;
-        case AST_LESS_EQUAL:    op = IR_LE; break;
-        case AST_GREATER:       op = IR_GT; break;
-        case AST_GREATER_EQUAL: op = IR_GE; break;
-		default: op = IR_ADD; break;
+		case AST_ADD:			op = IR_ADD; break;
+		case AST_SUB:			op = IR_SUB; break;
+		case AST_MUL:			op = IR_MUL; break;
+		case AST_DIV:			op = IR_DIV; break;
+		case AST_EQUAL:			op = IR_EQ; break;
+        case AST_NOT_EQUAL:		op = IR_NEQ; break;
+        case AST_LESS:			op = IR_LT; break;
+        case AST_LESS_EQUAL:	op = IR_LE; break;
+        case AST_GREATER:		op = IR_GT; break;
+		case AST_GREATER_EQUAL:	op = IR_GE; break;
+		default:				op = IR_ADD; break;
 	}
 	IRInstruction inst = { .opcode = op, .dest = dest, .src_1 = left, .src_2 = right };
-	emit (a, f, inst);
+	emit(a, f, inst);
 	return (dest);
 }
 
@@ -143,17 +143,29 @@ static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable
 
 static void gen_if(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symtab, size_t *last_reg)
 {
-	size_t	label_else = f->label_count++;
-	size_t	label_end = f->label_count++;
-	size_t	cond_reg = gen_expression(a, f, node->if_stmt.condition, symtab);
-	
-	emit(a, f, (IRInstruction){ .opcode = IR_JZ, .src_1 = cond_reg, .label_id = label_else });
-	gen_statement(a, f, node->if_stmt.then_branch, symtab, last_reg);
-	emit(a, f, (IRInstruction){ .opcode = IR_JMP, .label_id = label_end });
-	emit(a, f, (IRInstruction){ .opcode = IR_LABEL, .label_id = label_else });
 	if (node->if_stmt.else_branch)
-		gen_statement(a, f, node->if_stmt.else_branch, symtab, last_reg);
-	emit(a, f, (IRInstruction){ .opcode = IR_LABEL, .label_id = label_end });
+	{
+		size_t	label_else = f->label_count++;
+		size_t	label_end = f->label_count++;
+		size_t	cond_reg = gen_expression(a, f, node->if_stmt.condition, symtab);
+
+		emit(a, f, (IRInstruction){ .opcode = IR_JZ, .src_1 = cond_reg, .label_id = label_else });
+		gen_statement(a, f, node->if_stmt.then_branch, symtab, last_reg);
+		emit(a, f, (IRInstruction){ .opcode = IR_JMP, .label_id = label_end });
+		emit(a, f, (IRInstruction){ .opcode = IR_LABEL, .label_id = label_else });
+		if (node->if_stmt.else_branch)
+			gen_statement(a, f, node->if_stmt.else_branch, symtab, last_reg);
+		emit(a, f, (IRInstruction){ .opcode = IR_LABEL, .label_id = label_end });
+	}
+	else
+	{
+		size_t	label_end = f->label_count++;
+		size_t	cond_reg = gen_expression(a, f, node->if_stmt.condition, symtab);
+		emit(a, f, (IRInstruction){ .opcode = IR_JZ, .src_1 = cond_reg, .label_id = label_end });
+		gen_statement(a, f, node->if_stmt.then_branch, symtab, last_reg);
+		emit(a, f, (IRInstruction) { .opcode = IR_LABEL, .label_id = label_end });
+	}
+	
 }
 
 static void	gen_while(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symtab, size_t *last_reg)
@@ -191,7 +203,7 @@ static void gen_assignment(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *
 	Symbol *sym = symtab_lookup(symtab, node->assignment.var_name);
 	if (!sym)
 	{
-		fprintf(stderr, "Error: Assignment to undefined variable");
+		fprintf(stderr, "Error: Assignment to undefined variable\n");
 		return;
 	}
 	size_t val_reg = gen_expression(a, f, node->assignment.value, symtab);
@@ -202,7 +214,6 @@ static void gen_assignment(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *
     };
 	emit(a, f, mov);
 	*last_reg = sym->vreg;
-	return;
 }
 
 static void gen_return(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symtab)

@@ -131,7 +131,7 @@ typedef struct {
 	CallSiteList		call_sites;
 	PendingCall			pending_call;
 
-	uint32_t			label_offset[MAX_LABELS];
+	uint8_t				*label_offset[MAX_LABELS];
 	bool				label_defined[MAX_LABELS];
 	Patch				*patches;
 } JITContext;
