@@ -54,10 +54,7 @@ int main(int argc, char **argv)
 	print_header();
 	
 	if (!validate_arguments(argc, argv, &errors))
-	{
-		error_print_all(&errors);
 		goto cleanup;
-	}
 	CompilationContext ctx;
 	if (!compile_ctx_init(&ctx, &ast_arena, &errors, argc - 1))
 	{
