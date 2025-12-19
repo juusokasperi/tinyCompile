@@ -13,25 +13,32 @@
 */
 
 // Math - Binary
-X_OP(IR_ADD,     "ADD",      FMT_BIN,    encode_add)
-X_OP(IR_SUB,     "SUB",      FMT_BIN,    encode_sub)
-X_OP(IR_MUL,     "MUL",      FMT_BIN,    encode_mul)
-X_OP(IR_DIV,     "DIV",      FMT_BIN,    encode_div)
+X_OP(IR_ADD,    "ADD",      FMT_BIN,    encode_add)
+X_OP(IR_SUB,    "SUB",      FMT_BIN,    encode_sub)
+X_OP(IR_MUL,    "MUL",      FMT_BIN,    encode_mul)
+X_OP(IR_DIV,    "DIV",      FMT_BIN,    encode_div)
+X_OP(IR_EQ,		"EQ",		FMT_BIN,	encode_cmp)
+X_OP(IR_NEQ,	"NEQ",		FMT_BIN,	encode_cmp)
+X_OP(IR_LT,		"LT",		FMT_BIN,	encode_cmp)
+X_OP(IR_LE,		"LE",		FMT_BIN,	encode_cmp)
+X_OP(IR_GT,		"GT",		FMT_BIN,	encode_cmp)
+X_OP(IR_GE,		"GE",		FMT_BIN,	encode_cmp)
 
 // Math - Unary
-X_OP(IR_NEG,     "NEG",      FMT_UNARY,  encode_neg)
-X_OP(IR_NOT,     "NOT",      FMT_UNARY,  encode_not)
+X_OP(IR_NEG,	"NEG",      FMT_UNARY,  encode_neg)
+X_OP(IR_NOT,	"NOT",      FMT_UNARY,  encode_not)
+X_OP(IR_MOV,	"MOV",		FMT_UNARY,	encode_mov)
 
 // Values
-X_OP(IR_CONST,   "CONST",    FMT_IMM,    encode_const)
-X_OP(IR_ARG,     "ARG",      FMT_ARG,    encode_arg)
+X_OP(IR_CONST,	"CONST",    FMT_IMM,    encode_const)
+X_OP(IR_ARG,	"ARG",      FMT_ARG,    encode_arg)
 
 // Control Flow
-X_OP(IR_LABEL,   "LABEL",    FMT_LABEL,  encode_label)
-X_OP(IR_JMP,     "JMP",      FMT_JUMP,   encode_jmp)
-X_OP(IR_JZ,      "JZ",       FMT_BRANCH, encode_jz)
-X_OP(IR_JNZ,     "JNZ",      FMT_BRANCH, encode_jnz)
+X_OP(IR_LABEL,	"LABEL",    FMT_LABEL,  encode_label)
+X_OP(IR_JMP,	"JMP",      FMT_JUMP,   encode_jmp)
+X_OP(IR_JZ,		"JZ",       FMT_BRANCH, encode_branch)
+X_OP(IR_JNZ,	"JNZ",      FMT_BRANCH, encode_branch)
 
 // Functions
-X_OP(IR_CALL,    "CALL",     FMT_CALL,   encode_call)
-X_OP(IR_RET,     "RET",      FMT_UNARY,  encode_ret)
+X_OP(IR_CALL,	"CALL",     FMT_CALL,   encode_call)
+X_OP(IR_RET,	"RET",      FMT_UNARY,  encode_ret)
