@@ -78,6 +78,9 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 
 	JITResult result = {0};
 	ctx->pending_call.count = 0;
+	memset(ctx->label_offset, 0, sizeof(ctx->label_offset));
+	memset(ctx->label_defined, 0, sizeof(ctx->label_defined));
+	ctx->patches = NULL;
     size_t stack_bytes = (ir_func->vreg_count * 8 + 15) & ~15;
 
 	// Pass 1: calculate size
