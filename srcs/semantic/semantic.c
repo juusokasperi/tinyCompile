@@ -205,7 +205,7 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 			bool init_ok = true;
 			if (node->var_decl.initializer)
 				init_ok = analyze_expression(sa, node->var_decl.initializer);
-			bool decl_ok = scope_declare(sa, node->var_decl.var_name, TYPE_INT32, node->line);
+			bool decl_ok = scope_declare(sa, node->var_decl.var_name, TYPE_INT64, node->line);
 			return (init_ok && decl_ok);
 		}
 		case AST_ASSIGNMENT:
@@ -276,7 +276,7 @@ bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
 	Parameter *params = func_node->function.params;
 	size_t param_count = func_node->function.param_count;
 	int line = func_node->line;
-	DataType return_type = TYPE_INT32;
+	DataType return_type = TYPE_INT64;
 	bool is_prototype = func_node->function.is_prototype;
 
 	FunctionInfo *existing = global_lookup_function(global, name);
@@ -395,7 +395,7 @@ bool semantic_analyze(Arena *a, CompilationUnit *unit, ErrorList *errors, Global
 		.filename = unit->file.name,
 		.global = global,
 		.current = NULL,
-		.current_return_type = TYPE_INT32,
+		.current_return_type = TYPE_INT64,
 	};
 
 	bool all_ok = true;
