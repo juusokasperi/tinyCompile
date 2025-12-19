@@ -74,6 +74,14 @@ typedef struct {
 
 typedef int64_t (*JITFunc)(void);
 
+typedef struct Patch Patch;
+
+struct Patch {
+	size_t	label_id;
+	uint8_t	*loc;
+	Patch	*next;
+};
+
 typedef struct {
 	StringView	name;
 	uint8_t		*code_addr;
@@ -107,6 +115,10 @@ typedef struct {
 	FunctionRegistry	registry;
 	CallSiteList		call_sites;
 	PendingCall			pending_call;
+
+	uint32_t			label_offset[MAX_LABELS];
+	bool				label_defined[MAX_LABELS];
+	Patch				*patches;
 } JITContext;
 
 void		jit_ctx_init(JITContext *ctx, Arena *a);
@@ -122,5 +134,8 @@ void		emit_mov_imm(uint8_t **buf, size_t *cnt, X86Reg dst, uint64_t imm);
 void		emit_alu(uint8_t **buf, size_t *cnt, X86Opcode op, X86Reg dst, X86Reg src);
 void		emit_imul_r64(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void        emit_mov_reg_reg(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void		emit_cmp(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void		emit_setcc(uint8_t **buf, size_t *cnt, uint8_t condition_code, X86Reg dst);
+void		emit_movzx(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 
 #endif
