@@ -17,7 +17,7 @@ static uint32_t	hash_sv(StringView sv)
 	return (hash);
 }
 
-Symbol *symtab_lookup(SymbolTable *st, StringView name)
+Symbol *symbol_table_lookup(SymbolTable *st, StringView name)
 {
 	uint32_t	hash = hash_sv(name);
 	uint32_t	idx = hash & (SYMBOL_TABLE_SIZE - 1);
@@ -34,7 +34,7 @@ Symbol *symtab_lookup(SymbolTable *st, StringView name)
 	return (NULL);
 }
 
-void symtab_add(SymbolTable *st, StringView name, size_t vreg)
+void symbol_table_add(SymbolTable *st, StringView name, size_t vreg)
 {
 	uint32_t	hash = hash_sv(name);
 	uint32_t	idx = hash & (SYMBOL_TABLE_SIZE - 1);
