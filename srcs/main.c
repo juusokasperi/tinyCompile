@@ -24,7 +24,7 @@ static bool validate_arguments(int argc, char **argv, ErrorContext *errors)
 	for (int i = 1; i < argc; ++i)
 	{
 		size_t len = strlen(argv[i]);
-		if (len < 3 || strncmp(argv[i] + len - 2, ".c", 2) != 0)
+		if (len < 2 || strncmp(argv[i] + len - 2, ".c", 2) != 0)
 		{
 			error_fatal(errors, argv[i], 0, 0, "Only .c files are supported");
 			return (false);
