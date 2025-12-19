@@ -97,15 +97,16 @@ typedef struct {
 } CallSiteList;
 
 typedef struct {
-	Arena 				*arena;
-	FunctionRegistry	registry;
-	CallSiteList		call_sites;
-} JITContext;
-
-typedef struct {
 	size_t	arg_vregs[MAX_ARGS];
 	size_t	count;
 } PendingCall;
+
+typedef struct {
+	Arena 				*arena;
+	FunctionRegistry	registry;
+	CallSiteList		call_sites;
+	PendingCall			pending_call;
+} JITContext;
 
 void		jit_ctx_init(JITContext *ctx, Arena *a);
 JITResult	jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *func);

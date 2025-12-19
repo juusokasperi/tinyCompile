@@ -12,8 +12,6 @@ const X86Reg arg_registers[6] = {
 	REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9,
 };
 
-PendingCall pending_call = {0};
-
 // Shared helper
 int32_t get_slot(size_t vreg)
 {
@@ -24,7 +22,7 @@ int32_t get_slot(size_t vreg)
 /* DISPATCH TABLE */
 /* ============== */
 
-typedef size_t (*InstructionEncoder)(uint8_t*, size_t*, IRInstruction*, CallSiteList*);
+typedef size_t (*InstructionEncoder)(uint8_t*, size_t*, IRInstruction*, JITContext*);
 
 static const InstructionEncoder encoders[] =
 {
@@ -33,9 +31,9 @@ static const InstructionEncoder encoders[] =
 	#undef X_OP
 };
 
-static size_t	encode_inst(uint8_t *buf, IRInstruction *inst, CallSiteList *call_sites)
+static size_t	encode_inst(uint8_t *buf, IRInstruction *inst, JITContext *ctx)
 {
-	return (encoders[inst->opcode](buf, NULL, inst, call_sites));
+	return (encoders[inst->opcode](buf, NULL, inst, ctx));
 }
 
 /* ============== */
@@ -75,6 +73,7 @@ void jit_ctx_init(JITContext *ctx, Arena *a)
 	ctx->call_sites.capacity = MAX_CALL_SITES;
 	ctx->call_sites.count = 0;
 	ctx->call_sites.sites = arena_alloc(a, sizeof(CallSite) * ctx->call_sites.capacity);
+	memset(&ctx->pending_call, 0, sizeof(PendingCall));
 }
 
 JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *func)
@@ -83,7 +82,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	size_t param_count = func->function.param_count;
 
 	JITResult result = {0};
-	pending_call.count = 0;
+	ctx->pending_call.count = 0;
     size_t stack_bytes = (ir_func->vreg_count * 8 + 15) & ~15;
 
 	// Pass 1: calculate size
@@ -92,7 +91,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
     while (chunk)
 	{
         for (size_t i = 0; i < chunk->count; ++i)
-            total_size += encode_inst(NULL, &chunk->instructions[i], NULL);
+            total_size += encode_inst(NULL, &chunk->instructions[i], ctx);
         chunk = chunk->next;
     }
 	
@@ -109,7 +108,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
     while (chunk)
 	{
         for (size_t i = 0; i < chunk->count; ++i)
-            curr += encode_inst(curr, &chunk->instructions[i], &ctx->call_sites);
+            curr += encode_inst(curr, &chunk->instructions[i], ctx);
         chunk = chunk->next;	
     }
 
