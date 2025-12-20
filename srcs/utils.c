@@ -134,7 +134,7 @@ void print_header(void)
 	printf(BOX_BL);
 	for (int i = 0; i < 42; ++i)
 		printf(BOX_H);
-	printf(BOX_BR RESET "\n\n");
+	printf(BOX_BR RESET "\n");
 }
 
 void print_phase(int step, const char *name)
