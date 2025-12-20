@@ -17,6 +17,14 @@ const X86Reg arg_registers[6] = {
 // Shared helper
 int32_t get_slot(size_t vreg)
 {
+	if (vreg >= MAX_VREGS_PER_FUNCTION)
+	{
+		fprintf(stderr, BOLD_RED
+				"  > JIT INTERNAL ERROR\n"
+				"    vreg %zu exceeds limit %d\n" RESET,
+				vreg, MAX_VREGS_PER_FUNCTION);
+		abort();
+	}
 	return -((int32_t)(vreg + 1) * 8);
 }
 

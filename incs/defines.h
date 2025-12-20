@@ -11,6 +11,7 @@
 # define MAX_LABELS					512
 # define MAX_BLOCK_STATEMENTS		512
 # define MAX_EXPRESSION_DEPTH		128
+# define MAX_VREGS_PER_FUNCTION		65536
 
 #define CHECK_LIMIT(value, limit, name) \
     do { \

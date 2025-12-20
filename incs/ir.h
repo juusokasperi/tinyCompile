@@ -83,4 +83,17 @@ void			ir_print(IRFunction *func);
 const char		*ir_opcode_name(IROpcode op);
 IROpcodeFormat	ir_opcode_format(IROpcode op);
 
+#define IR_NEXT_VREG(f) \
+    ( \
+        ((f)->vreg_count >= MAX_VREGS_PER_FUNCTION) ? \
+        ( \
+            fprintf(stderr, "Fatal: Function '%.*s' exceeds vreg limit (%d)\n", \
+                    (int)(f)->name.len, (f)->name.start, MAX_VREGS_PER_FUNCTION), \
+            exit(1), \
+            0 \
+        ) \
+        : \
+        ((f)->vreg_count++) \
+    )
+
 #endif
