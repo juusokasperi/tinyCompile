@@ -45,17 +45,23 @@ static size_t gen_identifier(ASTNode *node, SymbolTable *symbol_table)
 
 static size_t gen_call(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbol_table)
 {
-	size_t			arg_reg;
-	size_t			result_reg;
+	size_t	arg_vregs[MAX_PARAMS_PER_FUNCTION];
+	size_t	result_reg;
+
+	for (size_t i = 0; i < node->call.arg_count; ++i)
+		arg_vregs[i] = gen_expression(a, f, node->call.args[i], symbol_table);
 
 	for (size_t i = 0; i < node->call.arg_count; ++i)
 	{
-		arg_reg = gen_expression(a, f, node->call.args[i], symbol_table);
-		IRInstruction arg_inst = { .opcode = IR_ARG, .src_1 = arg_reg, .imm = i };
+		IRInstruction arg_inst = { 
+			.opcode = IR_ARG,
+			.src_1 = arg_vregs[i],
+			.imm = i
+		};
 		emit(a, f, arg_inst);
 	}
 	result_reg = f->vreg_count++;
-	IRInstruction call_inst = { 
+	IRInstruction call_inst = {
 		.opcode = IR_CALL,
 		.dest = result_reg,
 		.func_name = node->call.function_name
