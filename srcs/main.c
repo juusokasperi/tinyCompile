@@ -28,10 +28,11 @@ int main(int argc, char **argv)
 
 	print_header();
 	
+	print_phase(1, "INITIALIZATION");
 	CompilationContext ctx;
 	if (!compile_ctx_init(&ctx, &ast_arena, &errors, argc - 1))
 	{
-		error_fatal(&errors, NULL, 0, 0, "Failed to initialize compilation context");
+		fprintf(stderr, BOLD_RED "\n  > initialization failed\n" RESET);
 		goto cleanup;
 	}
 
@@ -42,29 +43,29 @@ int main(int argc, char **argv)
 		size_t	size;
 		if (!compile_ctx_add_file(&ctx, argv[i], &resources, &fd, &mapped, &size))
 		{
-			error_fatal(&errors, argv[i], 0, 0, "Failed to load source file");
+			fprintf(stderr, BOLD_RED "\n  > initialization failed\n" RESET);
 			goto cleanup;
 		}
 	}
 
-	print_phase(1, "PARSING");
+	print_phase(2, "PARSING");
 	if (!compile_parse_all(&ctx))
 	{
-		fprintf(stderr, BOLD_RED "\n  > parsing failed.\n" RESET);
+		fprintf(stderr, BOLD_RED "\n  > parsing failed\n" RESET);
 		goto cleanup;
 	}
 
-	print_phase(2, "SEMANTICS");
+	print_phase(3, "SEMANTICS");
 	if (!compile_analyze_all(&ctx))
 	{
-		fprintf(stderr, BOLD_RED "\n  > semantic analysis failed.\n" RESET);
+		fprintf(stderr, BOLD_RED "\n  > semantic analysis failed\n" RESET);
 		goto cleanup;
 	}
 
 	if (error_has_errors(&errors))
 		goto cleanup;
 
-	print_phase(3, "JIT");
+	print_phase(4, "JIT");
 	JITContext jit_ctx;
 	jit_ctx_init(&jit_ctx, &jit_arena);
 
@@ -118,7 +119,7 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	print_phase(4, "EXECUTION");
+	print_phase(5, "EXECUTION");
 	
 	bool found_main = false;
 	for (size_t i = 0; i < jit_ctx.registry.count; i++)
