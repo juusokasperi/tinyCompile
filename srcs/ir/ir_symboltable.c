@@ -47,6 +47,12 @@ void symbol_table_add(SymbolTable *st, StringView name, size_t vreg)
 			|| sv_eq(st->entries[curr].name, name))
 		{
 			ScopeChange	*change = arena_alloc(st->arena, sizeof(ScopeChange));
+			if (!change)
+			{
+				fprintf(stderr, 
+						"Fatal: out of memory in symbol_table_add\n");
+				exit(1);
+			}
 			change->index = curr;
 			change->previous = st->entries[curr];
 			change->next = st->changes;
@@ -54,7 +60,7 @@ void symbol_table_add(SymbolTable *st, StringView name, size_t vreg)
 			st->entries[curr].name = name;
 			st->entries[curr].vreg = vreg;
 			st->entries[curr].occupied = true;
-			return ;
+			return;
 		}
 	}
 	fprintf(stderr, "Fatal: Symbol table overflow (increase SYMBOL_TABLE_SIZE)\n");
