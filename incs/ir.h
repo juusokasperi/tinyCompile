@@ -8,14 +8,24 @@
 # include <stdbool.h>
 #include <stddef.h>
 
+typedef struct ScopeChange ScopeChange;
+
 typedef struct {
 	StringView	name;
 	size_t		vreg;
 	bool		occupied;
 } Symbol;
 
+struct ScopeChange {
+	size_t		index;
+	Symbol		previous;
+	ScopeChange	*next;
+};
+
 typedef struct {
-	Symbol	entries[SYMBOL_TABLE_SIZE];
+	Symbol		entries[SYMBOL_TABLE_SIZE];
+	Arena		*arena;
+	ScopeChange	*changes;
 } SymbolTable;
 
 typedef enum {
@@ -63,6 +73,7 @@ typedef struct {
 	StringView	name;
 } IRFunction;
 
+void			symbol_table_restore(SymbolTable *st, ScopeChange *target_state);
 Symbol*			symbol_table_lookup(SymbolTable *st, StringView name);
 void			symbol_table_add(SymbolTable *st, StringView name, size_t vreg);
 
