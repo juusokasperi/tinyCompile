@@ -1,6 +1,7 @@
 #include "ir.h"
 #include "jit.h"
 #include "jit_internal.h"
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -293,25 +294,17 @@ size_t encode_arg(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;
-	uint8_t	*curr = buf;
-	size_t	size = 0;
-	int32_t	dest_disp = get_slot(inst->dest);
-	PendingCall *pc = &ctx->pending_call;
-	CallSiteList *cs = &ctx->call_sites;
+	uint8_t			*curr = buf;
+	size_t			size = 0;
+	int32_t			dest_disp = get_slot(inst->dest);
+	PendingCall 	*pc = &ctx->pending_call;
+	CallSiteList	*cs = &ctx->call_sites;
 	
-	for (size_t i = 0; i < pc->count; ++i)
-	{
-		int32_t arg_disp = get_slot(pc->arg_vregs[i]);
-		if (i < 6)
-			emit_load_param(&curr, &size, arg_registers[i], arg_disp);
-		else
-		{
-			emit_load_param(&curr, &size, REG_RAX, arg_disp);
-			emit_u8(&curr, &size, OP_PUSH + REG_RAX);
-		}
-	}
-	size_t stack_args = (pc->count > 6) ? (pc->count - 6) : 0;
-	bool needs_alignment = (stack_args % 2) != 0;
+	// 1. Calculate stack arguments
+	size_t	stack_args = (pc->count > 6) ? (pc->count - 6) : 0;
+
+	// 2. Apply alignment first before pushing
+	bool 	needs_alignment = (stack_args % 2) != 0;
 	if (needs_alignment)
 	{
 		emit_u8(&curr, &size, REX_W);
@@ -319,6 +312,24 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 		emit_u8(&curr, &size, MOD_REG | (EXT_SUB << 3) | REG_RSP);
 		emit_u32(&curr, &size, 8);
 	}
+
+	// 3. Push stack arguments in reverse order
+	for (size_t i = pc->count; i > 6; --i)
+	{
+		size_t	idx = i - 1;
+		int32_t	arg_disp = get_slot(pc->arg_vregs[idx]);
+		emit_load_param(&curr, &size, REG_RAX, arg_disp);
+		emit_u8(&curr, &size, OP_PUSH + REG_RAX);
+	}
+
+	// 4. Load register aguments forward
+	for (size_t i = 0; i < pc->count && i < 6; ++i)
+	{
+		int32_t	arg_disp = get_slot(pc->arg_vregs[i]);
+		emit_load_param(&curr, &size, REG_RAX, arg_disp);
+	}
+
+	// 5. Emit call
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, MOV_IMM_R + REG_RAX);
 	if (cs && buf)
@@ -333,6 +344,8 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	emit_u64(&curr, &size, 0xDEADBEEFDEADBEEF); // Placeholder
 	emit_u8(&curr, &size, OP_CALL_IND);
 	emit_u8(&curr, &size, MOD_REG | (EXT_CALL << 3) | REG_RAX);
+
+	// 6. Cleanup stack (arguments + padding)
 	if (stack_args > 0 || needs_alignment)
 	{
 		size_t cleanup = stack_args * 8;
