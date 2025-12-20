@@ -43,19 +43,30 @@ void symbol_table_add(SymbolTable *st, StringView name, size_t vreg)
 	for (size_t i = 0; i < SYMBOL_TABLE_SIZE; ++i)
 	{
 		curr = (idx + i) & (SYMBOL_TABLE_SIZE - 1);
-		if (!st->entries[curr].occupied)
+		if (!st->entries[curr].occupied 
+			|| sv_eq(st->entries[curr].name, name))
 		{
+			ScopeChange	*change = arena_alloc(st->arena, sizeof(ScopeChange));
+			change->index = curr;
+			change->previous = st->entries[curr];
+			change->next = st->changes;
+			st->changes = change;
 			st->entries[curr].name = name;
 			st->entries[curr].vreg = vreg;
 			st->entries[curr].occupied = true;
 			return ;
 		}
-		if (sv_eq(st->entries[curr].name, name))
-		{
-			st->entries[curr].vreg = vreg;
-			return;
-		}
 	}
 	fprintf(stderr, "Fatal: Symbol table overflow (increase SYMBOL_TABLE_SIZE)\n");
 	exit(1);
+}
+
+void symbol_table_restore(SymbolTable *st, ScopeChange *target_state)
+{
+	while (st->changes != target_state)
+	{
+		ScopeChange *top = st->changes;
+		st->entries[top->index] = top->previous;
+		st->changes = top->next;
+	}
 }

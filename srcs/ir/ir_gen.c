@@ -1,5 +1,7 @@
 #include "ast.h"
+#include "defines.h"
 #include "ir.h"
+#include "semantic.h"
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -224,8 +226,11 @@ static void gen_return(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symb
 
 static void gen_block(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbol_table, size_t *last_reg)
 {
+	ScopeChange	*watermark = symbol_table->changes;
+
 	for (size_t i = 0; i < node->block.count; ++i)
 		gen_statement(a, f, node->block.statements[i], symbol_table, last_reg);
+	symbol_table_restore(symbol_table, watermark);
 }
 
 static void gen_statement(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbol_table, size_t *last_reg)
@@ -270,7 +275,7 @@ IRFunction *ir_gen(Arena *a, ASTNode *root)
 	f->head = NULL;
 	f->tail = NULL;
 
-	SymbolTable symbol_table = {0};
+	SymbolTable symbol_table = { .arena = a, .changes = NULL };
 	size_t result_reg = 0;
 
 	if (root->type == AST_FUNCTION)
