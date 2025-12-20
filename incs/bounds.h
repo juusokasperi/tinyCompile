@@ -22,7 +22,7 @@ static inline bool bounds_check(size_t index, size_t capacity, const char *array
 
 static inline bool safe_increment(size_t *value, size_t limit, const char *name)
 {
-    if (*value >= limit - 1) {
+    if (limit == 0 || *value >= limit - 1) {
         fprintf(stderr, "Counter overflow: %s (limit: %zu)\n", name, limit);
         return false;
     }
