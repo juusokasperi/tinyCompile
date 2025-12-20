@@ -1,4 +1,5 @@
 #include "jit.h"
+#include "compile.h"
 #include "defines.h"
 #include "jit_internal.h"
 #include "ir.h"
@@ -214,4 +215,47 @@ bool jit_link_all(JITContext *ctx, ErrorContext *errors)
 		memcpy(site->patch_location, &addr, 8);
 	}
 	return (success);
+}
+
+bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx, 
+					Arena *jit_arena, ErrorContext *errors)
+{
+	for (size_t i = 0; i < comp_ctx->count; ++i)
+	{
+		CompilationUnit *unit = &comp_ctx->units[i];
+		if (!unit->parsed_ok)
+			continue;
+
+		for (size_t j = 0; j < unit->ast->translation_unit.count; ++j)
+		{
+			ASTNode *func = unit->ast->translation_unit.declarations[j];
+			if (func->function.is_prototype)
+                continue;
+			printf("  :: compiling symbol '%.*s'\n", (int)func->function.name.len, func->function.name.start);
+
+			IRFunction *ir = ir_gen(jit_arena, func);
+			if (!ir)
+			{
+				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);
+				error_fatal(errors, unit->file.name, func->line, 0,
+						"IR Generation failed for function '%.*s'",
+						(int)func->function.name.len, func->function.name.start);
+				return (false);
+			}
+
+			if (sv_eq_cstr(func->function.name, "main"))
+				ir_print(ir);
+
+			JITResult jit = jit_compile_function(jit_ctx, ir, func);
+			if (!jit.code)
+			{
+				fprintf(stderr, BOLD_RED "  > compilation failed\n" RESET);
+				error_fatal(errors, unit->file.name, func->line, 0,
+						"JIT compilation failed for function '%.*s'",
+						(int)func->function.name.len, func->function.name.start);
+				return (false);
+			}
+		}
+	}
+	return (true);
 }

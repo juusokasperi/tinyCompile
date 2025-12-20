@@ -9,6 +9,7 @@
 # include "ir.h"
 # include "memarena.h"
 # include "error_handler.h"
+# include "compile.h"
 
 typedef enum {
     REG_RAX = 0,
@@ -137,6 +138,8 @@ typedef struct {
 	Patch				*patches;
 } JITContext;
 
+bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx, 
+					Arena *jit_arena, ErrorContext *errors);
 void		jit_ctx_init(JITContext *ctx, Arena *a);
 JITResult	jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *func);
 bool		jit_link_all(JITContext *ctx, ErrorContext *errors);

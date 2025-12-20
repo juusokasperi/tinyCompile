@@ -1,13 +1,10 @@
 #include <stddef.h>
 #define MEMARENA_IMPLEMENTATION
 #include "memarena.h"
-#include "ast.h"
-#include "ir.h"
 #include "jit.h"
 #include "compile.h"
 #include "layout.h"
 #include "utils.h"
-#include "defines.h"
 #include "error_handler.h"
 #include "cleanup.h"
 #include <string.h>
@@ -68,45 +65,9 @@ int main(int argc, char **argv)
 	print_phase(4, "JIT");
 	JITContext jit_ctx;
 	jit_ctx_init(&jit_ctx, &jit_arena);
+	if (!jit_compile_pass(&jit_ctx, &ctx, &jit_arena, &errors))
+		goto cleanup;
 
-	for (size_t i = 0; i < ctx.count; ++i)
-	{
-		CompilationUnit *unit = &ctx.units[i];
-		if (!unit->parsed_ok)
-			continue;
-
-		for (size_t j = 0; j < unit->ast->translation_unit.count; ++j)
-		{
-			ASTNode *func = unit->ast->translation_unit.declarations[j];
-			if (func->function.is_prototype)
-                continue;
-			printf("  :: compiling symbol '%.*s'\n", (int)func->function.name.len, func->function.name.start);
-
-			IRFunction *ir = ir_gen(&jit_arena, func);
-			if (!ir)
-			{
-				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);
-				error_fatal(&errors, unit->file.name, func->line, 0,
-						"IR Generation failed for function '%.*s'",
-						(int)func->function.name.len, func->function.name.start);
-				goto cleanup;
-			}
-
-			if (sv_eq_cstr(func->function.name, "main"))
-				ir_print(ir);
-
-			JITResult jit = jit_compile_function(&jit_ctx, ir, func);
-			if (!jit.code)
-			{
-				fprintf(stderr, BOLD_RED "  > compilation failed\n" RESET);
-				error_fatal(&errors, unit->file.name, func->line, 0,
-						"JIT compilation failed for function '%.*s'",
-						(int)func->function.name.len, func->function.name.start);
-				goto cleanup;
-			}
-		}
-	}
-	
 	if (!jit_link_all(&jit_ctx, &errors))
 	{
 		fprintf(stderr, BOLD_RED "  > linking failed\n" RESET);
