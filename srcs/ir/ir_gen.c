@@ -1,7 +1,5 @@
 #include "ast.h"
-#include "defines.h"
 #include "ir.h"
-#include "semantic.h"
 #include <stddef.h>
 #include <stdlib.h>
 
