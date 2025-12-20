@@ -67,11 +67,11 @@ typedef struct {
 
 void	lexer_init(Lexer *l, FileMap *file);
 Token	lexer_next(Lexer *l);
-char	peek(Lexer *l);
-char	peek_next(Lexer *l);
-char	advance(Lexer *l);
-void	skip_whitespace(Lexer *l);
-Token	make_token(Lexer *l, TokenType type, StringView text);
-Token	make_token_no_sv(Lexer *l, TokenType type);
+char	lexer_peek(Lexer *l);
+char	lexer_peek_next(Lexer *l);
+char	lexer_advance(Lexer *l);
+void	lexer_skip_whitespace(Lexer *l);
+Token	lexer_make_token(Lexer *l, TokenType type, StringView text);
+Token	lexer_make_token_no_sv(Lexer *l, TokenType type);
 
 #endif

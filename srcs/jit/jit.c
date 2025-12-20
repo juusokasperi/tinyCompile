@@ -1,6 +1,12 @@
+#include "jit.h"
+#include "defines.h"
 #include "jit_internal.h"
 #include "ir.h"
 #include "layout.h"
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <unistd.h>
 
 // Calling convention
 const X86Reg arg_registers[6] = {
@@ -61,7 +67,7 @@ size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_count)
 void jit_ctx_init(JITContext *ctx, Arena *a)
 {
 	ctx->arena = a;
-	ctx->registry.capacity = MAX_FUNCS;
+	ctx->registry.capacity = MAX_FUNCTION_COUNT;
 	ctx->registry.count = 0;
 	ctx->registry.functions = arena_alloc(a, sizeof(CompiledFunction) * ctx->registry.capacity);
 
@@ -81,49 +87,106 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	memset(ctx->label_offset, 0, sizeof(ctx->label_offset));
 	memset(ctx->label_defined, 0, sizeof(ctx->label_defined));
 	ctx->patches = NULL;
+
+	if (ir_func->label_count >= MAX_LABELS)
+	{
+		fprintf(stderr, BOLD_RED "  > too many labels in function '%.*s' (max %d)\n" RESET,
+				(int)func_name.len, func_name.start, MAX_LABELS);
+		return (result);
+	}
+
     size_t stack_bytes = (ir_func->vreg_count * 8 + 15) & ~15;
 
-	// Pass 1: calculate size
-    size_t total_size = encode_prologue(NULL, stack_bytes, param_count);
+	// == PASS 1: Calculate size ===
+    size_t predicted_size = encode_prologue(NULL, stack_bytes, param_count);
     IRChunk *chunk = ir_func->head;
+	size_t instruction_count = 0;
     while (chunk)
 	{
         for (size_t i = 0; i < chunk->count; ++i)
-            total_size += encode_inst(NULL, &chunk->instructions[i], ctx);
+		{
+            predicted_size += encode_inst(NULL, &chunk->instructions[i], ctx);
+			instruction_count++;
+		}
         chunk = chunk->next;
     }
-	
-	// Allocate
-	result.code = arena_alloc_aligned(ctx->arena, total_size, 16);
-    if (!result.code) return (result);
-    result.size = total_size;
 
-	// Pass 2: emit 
-    uint8_t *curr = result.code;
-    curr += encode_prologue(curr, stack_bytes, param_count);
+	assert(instruction_count == ir_func->total_count && "IR instruction count mismatch");
+	
+	// === Allocate ===
+	result.code = arena_alloc_aligned(ctx->arena, predicted_size, 16);
+    if (!result.code)
+	{
+		fprintf(stderr, BOLD_RED "  > failed to allocate %zu bytes for JIT code\n" RESET,
+				predicted_size);
+	}
+
+	// === PASS 2: Emit ===
+	uint8_t *write_ptr = result.code;
+	size_t prologue_size = encode_prologue(write_ptr, stack_bytes, param_count);
+	write_ptr += prologue_size;
     
     chunk = ir_func->head;
     while (chunk)
 	{
         for (size_t i = 0; i < chunk->count; ++i)
-            curr += encode_inst(curr, &chunk->instructions[i], ctx);
+		{
+			size_t inst_size = encode_inst(write_ptr, &chunk->instructions[i], ctx);
+            write_ptr += inst_size;
+			size_t written = write_ptr - result.code;
+			if (written > predicted_size)
+			{
+				fprintf(stderr, BOLD_RED
+						"  > JIT CODE GENERATION BUG: buffer overrun!\n"
+						"  	 Predicted: %zu bytes\n"
+						"    Actually wrote: %zu bytes\n"
+						"    Instruction: %s\n" RESET,
+						predicted_size, written,
+						ir_opcode_name(chunk->instructions[i].opcode));
+				abort();
+			}
+		}
         chunk = chunk->next;	
     }
 
-	// Register this function
-    if (ctx->registry.count < ctx->registry.capacity)
+	// === Verify size match ===
+	size_t actual_size = write_ptr - result.code;
+	if (actual_size != predicted_size)
 	{
-        ctx->registry.functions[ctx->registry.count++] = (CompiledFunction){
+		fprintf(stderr, BOLD_RED
+				"  > JIT CODE GENERATION BUG: size mismatch!\n"
+				"    Pass 1 predicted: %zu bytes\n"
+				"    Pass 2 generated: %zu bytes\n"
+				"    Difference: %zd bytes\n" RESET,
+				predicted_size, actual_size,
+				(ssize_t)actual_size - (ssize_t)predicted_size);
+		fprintf(stderr,"\n  > IR dump for failed function:\n");
+		ir_print(ir_func);
+		abort();
+	}
+
+	result.size = actual_size;
+
+	// === Register this function ===
+    if (ctx->registry.count >= MAX_FUNCTION_COUNT)
+	{
+		fprintf(stderr, BOLD_RED
+				"  > too many functions (max %d)\n" RESET,
+				MAX_FUNCTION_COUNT);
+		return ((JITResult){0});
+	}
+	ctx->registry.functions[ctx->registry.count++] = (CompiledFunction){
             .name = func_name,
             .code_addr = result.code,
             .code_size = result.size
-        };
-    }
+    };
 	return (result);
 }
 
-bool jit_link_all(JITContext *ctx)
+bool jit_link_all(JITContext *ctx, ErrorContext *errors)
 {
+	bool	success = true;
+
 	for (size_t i = 0; i < ctx->call_sites.count; ++i)
 	{
 		CallSite *site = &ctx->call_sites.sites[i];
@@ -140,13 +203,15 @@ bool jit_link_all(JITContext *ctx)
 
 		if (!target_addr)
 		{
-			fprintf(stderr, BOLD_RED "  > linker error: undefined reference to '%.*s'\n" RESET,
+			error_add(errors, ERROR_CODEGEN, ERROR_LEVEL_ERROR, NULL, 0, 0,
+					"undefined reference to function '%.*s'",
 					(int)site->target_name.len, site->target_name.start);
-			return (false);
+			success = false;
+			continue;
 		}
 		
 		uint64_t addr = (uint64_t)target_addr;
 		memcpy(site->patch_location, &addr, 8);
 	}
-	return (true);
+	return (success);
 }

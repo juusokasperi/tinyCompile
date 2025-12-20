@@ -1,48 +1,10 @@
 #include "semantic.h"
 #include "compile.h"
+#include "defines.h"
+#include <stdbool.h>
 #include <stdio.h>
 
-void error_list_init(ErrorList *list)
-{
-	list->head = NULL;
-	list->tail = NULL;
-	list->count = 0;
-}
-
-void error_list_add(ErrorList *list, Arena *a, const char *msg, const char *filename, int line, int col)
-{
-	ErrorNode *node = arena_alloc(a, sizeof(ErrorNode));
-	node->msg = msg;
-	node->filename = filename;
-	node->line = line;
-	node->column = col;
-	node->next = NULL;
-
-	if (list->tail)
-	{
-		list->tail->next = node;
-		list->tail = node;
-	}
-	else
-		list->head = list->tail = node;
-	list->count++;
-}
-
-void error_list_print(ErrorList *list)
-{
-	ErrorNode *curr = list->head;
-	while (curr)
-	{
-		fprintf(stderr, "%s:%d:%d: error: %s\n",
-				curr->filename,
-				curr->line,
-				curr->column,
-				curr->msg);
-		curr = curr->next;
-	}
-}
-
-Scope *scope_enter(SemanticAnalyzer *sa)
+Scope *semantic_scope_enter(SemanticAnalyzer *sa)
 {
 	Scope *new_scope = arena_alloc(sa->arena, sizeof(Scope));
 	new_scope->parent = sa->current;
@@ -51,19 +13,16 @@ Scope *scope_enter(SemanticAnalyzer *sa)
 	return (new_scope);
 }
 
-void scope_exit(SemanticAnalyzer *sa)
+void semantic_scope_exit(SemanticAnalyzer *sa)
 {
 	if (sa->current)
 		sa->current = sa->current->parent;
 }
 
-VarInfo *scope_lookup(Scope *scope, StringView name)
+VarInfo *semantic_scope_lookup(Scope *scope, StringView name)
 {
-	// printf("DEBUG: Looking up '%.*s' (starting scope=%p)\n", 
-    //   (int)name.len, name.start, (void*)scope);
 	while (scope)
 	{
-		// printf("  Checking scope %p with %zu vars\n", (void*)scope, scope->var_count);
 		for (size_t i = 0; i < scope->var_count; ++i)
 		{
 			if (sv_eq(scope->vars[i].name, name))
@@ -71,33 +30,31 @@ VarInfo *scope_lookup(Scope *scope, StringView name)
 		}
 		scope = scope->parent;
 	}
-    // printf("  Not found!\n");
 	return (NULL);
 }
 
-bool scope_declare(SemanticAnalyzer *sa, StringView name, DataType type, int line)
+bool semantic_scope_declare(SemanticAnalyzer *sa, StringView name, 
+							DataType type, int line)
 {
 	Scope *scope = sa->current;
 	if (!scope)
 		return (false);
-	// printf("DEBUG: Declaring '%.*s' at line %d (scope=%p)\n", 
-    //	(int)name.len, name.start, line, (void*)scope);
 
 	for (size_t i = 0; i < scope->var_count; ++i)
 	{
 		if (sv_eq(scope->vars[i].name, name))
 		{
-			char *msg = arena_sprintf(sa->arena,
-				"variable '%.*s' already declared in this scope (first declared at line %d)",
-				(int)name.len, name.start, scope->vars[i].line);
-			error_list_add(sa->errors, sa->arena, msg, sa->filename, line, 0);
+			error_semantic(sa->errors, sa->filename, line, 0,
+					"redeclaration of variable '%.*s' (first declared at line %d)",
+					(int)name.len, name.start, scope->vars[i].line);
 			return (false);
 		}
 	}
 
-	if (scope->var_count >= 256)
+	if (scope->var_count >= MAX_VARS_PER_SCOPE)
 	{
-		error_list_add(sa->errors, sa->arena, "too many variables in scope", sa->filename, line, 0);
+		error_semantic(sa->errors, sa->filename, line, 0,
+				"too many variables in scope (max %d)", MAX_VARS_PER_SCOPE);
 		return (false);
 	}
 
@@ -121,13 +78,12 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 			return (true);
 		case AST_IDENTIFIER:
 		{
-			VarInfo *var = scope_lookup(sa->current, node->identifier.name);
+			VarInfo *var = semantic_scope_lookup(sa->current, node->identifier.name);
 			if (!var)
 			{
-				char *msg = arena_sprintf(sa->arena,
-					"undefined variable '%.*s'",
-					(int)node->identifier.name.len, node->identifier.name.start);
-				error_list_add(sa->errors, sa->arena, msg, sa->filename, node->line, node->column);
+				error_semantic(sa->errors, sa->filename, node->line, node->column,
+						"use of undeclared identifier '%.*s'",
+						(int)node->identifier.name.len, node->identifier.name.start);
 				return (false);
 			}
 			return (true);
@@ -146,25 +102,28 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 
 			if (!is_visible)
 			{
-				char *msg = arena_sprintf(sa->arena, "implicit declaration of function '%.*s' is invalid in tinyCompile",
+				error_semantic(sa->errors, sa->filename, node->line, node->column,
+						"implicit declaration of function '%.*s' is invalid in tinyCompile",
 						(int)node->call.function_name.len, node->call.function_name.start);
-				error_list_add(sa->errors, sa->arena, msg, sa->filename, node->line, node->column);
 				return (false);
 			}
 
-			FunctionInfo *func = global_lookup_function(sa->global, node->call.function_name);
+			FunctionInfo *func = semantic_global_lookup_function(
+					sa->global, node->call.function_name);
 			if (!func)
 			{
-				char *msg = arena_sprintf(sa->arena, "call to undefined function '%.*s'", (int)node->call.function_name.len, node->call.function_name.start);
-				error_list_add(sa->errors, sa->arena, msg, sa->filename, node->line, node->column);
+				error_semantic(sa->errors, sa->filename, node->line, node->column,
+						"call to undefined function '%.*s'", 
+						(int)node->call.function_name.len, node->call.function_name.start);
 				return (false);
 			}
 
 			if (node->call.arg_count != func->param_count)
 			{
-				char *msg = arena_sprintf(sa->arena, "function '%.*s' expects %zu arguments, got %zu",
-						(int)node->call.function_name.len, node->call.function_name.start, func->param_count, node->call.arg_count);
-				error_list_add(sa->errors, sa->arena, msg, sa->filename, node->line, node->column);
+				error_semantic(sa->errors, sa->filename, node->line, node->column,
+						"function '%.*s' expects %zu arguments, got %zu",
+						(int)node->call.function_name.len, node->call.function_name.start,
+						func->param_count, node->call.arg_count);
 				return (false);
 			}
 
@@ -205,18 +164,19 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 			bool init_ok = true;
 			if (node->var_decl.initializer)
 				init_ok = analyze_expression(sa, node->var_decl.initializer);
-			bool decl_ok = scope_declare(sa, node->var_decl.var_name, TYPE_INT64, node->line);
+			bool decl_ok = semantic_scope_declare(sa, node->var_decl.var_name,
+					TYPE_INT64, node->line);
 			return (init_ok && decl_ok);
 		}
 		case AST_ASSIGNMENT:
 		{
-			VarInfo *var = scope_lookup(sa->current, node->assignment.var_name);
+			VarInfo *var = semantic_scope_lookup(sa->current, node->assignment.var_name);
 			if (!var)
 			{
-				char *msg = arena_sprintf(sa->arena,
-					"assignment to undefined variable '%.*s'",
-					(int)node->assignment.var_name.len, node->assignment.var_name.start);
-				error_list_add(sa->errors, sa->arena, msg, sa->filename, node->line, node->column);
+				error_semantic(sa->errors, sa->filename, node->line, node->column,
+						"assignment to undeclared variable '%.*s'",
+						(int)node->assignment.var_name.len,
+						node->assignment.var_name.start);
 				return (false);
 			}
 			return (analyze_expression(sa, node->assignment.value));
@@ -227,8 +187,9 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 			{
 				if (sa->current_return_type == TYPE_VOID)
 				{
-					error_list_add(sa->errors, sa->arena, "void function should not return a value",
-							sa->filename, node->line, node->column);
+					error_semantic(sa->errors, sa->filename,
+							node->line, node->column,
+							"void function should not return a value");
 					return (false);
 				}
 				return (analyze_expression(sa, node->return_stmt.expression));
@@ -237,23 +198,39 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 			{
 				if (sa->current_return_type != TYPE_VOID)
 				{
-					error_list_add(sa->errors, sa->arena, "non-void function must return a value",
-							sa->filename, node->line, node->column);
+					error_semantic(sa->errors, sa->filename,
+							node->line, node->column,
+							"non-void function must return a value");
 					return (false);
 				}
 				return (true);
 			}
 		}
+		case AST_IF:
+		{
+			bool cond_ok = analyze_expression(sa, node->if_stmt.condition);
+			bool then_ok = analyze_statement(sa, node->if_stmt.then_branch);
+			bool else_ok = true;
+			if (node->if_stmt.else_branch)
+				else_ok = analyze_statement(sa, node->if_stmt.else_branch);
+			return (cond_ok && then_ok && else_ok);
+		}
+		case AST_WHILE:
+		{
+			bool cond_ok = analyze_expression(sa, node->while_stmt.condition);
+			bool body_ok = analyze_statement(sa, node->while_stmt.body);
+			return (cond_ok && body_ok);
+		}
 		case AST_BLOCK:
 		{
-			scope_enter(sa);
+			semantic_scope_enter(sa);
 			bool all_ok = true;
 			for (size_t i = 0; i < node->block.count; ++i)
 			{
 				if (!analyze_statement(sa, node->block.statements[i]))
 					all_ok = false;
 			}
-			scope_exit(sa);
+			semantic_scope_exit(sa);
 			return (all_ok);
 		}
 		default:
@@ -261,33 +238,41 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 	}
 }
 
-void global_scope_init(GlobalScope *global)
+void semantic_global_init(GlobalScope *global)
 {
 	global->function_count = 0;
 }
 
-bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
-                				ASTNode *func_node, const char *filename)
+bool	semantic_global_declare_function(GlobalScope *global, ErrorContext *errors, 
+			ASTNode *func_node, const char *filename)
 {
 	if (!func_node || func_node->type != AST_FUNCTION)
 		return (false);
 
-	StringView name = func_node->function.name;
-	Parameter *params = func_node->function.params;
-	size_t param_count = func_node->function.param_count;
-	int line = func_node->line;
-	DataType return_type = TYPE_INT64;
-	bool is_prototype = func_node->function.is_prototype;
+	StringView	name = func_node->function.name;
+	Parameter	*params = func_node->function.params;
+	size_t		param_count = func_node->function.param_count;
+	int			line = func_node->line;
+	DataType	return_type = TYPE_INT64;
+	bool		is_prototype = func_node->function.is_prototype;
 
-	FunctionInfo *existing = global_lookup_function(global, name);
+	if (param_count > MAX_PARAMS_PER_FUNCTION)
+	{
+		error_semantic(errors, filename, line, 0,
+				"too many parameters (max %d)", MAX_PARAMS_PER_FUNCTION);
+		return (false);
+	}
+
+	FunctionInfo *existing = semantic_global_lookup_function(global, name);
 	if (existing)
 	{
-		// Check if param count matches (naive for now)
 		if (existing->param_count != param_count)
 		{
-			char *msg = arena_sprintf(a, "conflicting types for '%.*s'",
-					(int)name.len, name.start);
-			error_list_add(errors, a, msg, filename, line, 0);
+			error_semantic(errors, filename, line, 0,
+					"conflicting types for function '%.*s'"
+					"(previous declaration at %s:%d had %zu parameters)",
+					(int)name.len, name.start, existing->filename,
+					existing->line, existing->param_count);
 			return (false);
 		}
 
@@ -313,18 +298,19 @@ bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
 			// If new one is also definition, it is an error
 			if (!is_prototype)
 			{
-				char *msg = arena_sprintf(a, "redefinition of '%.*s' (previous definition was at %s:%d)",
+				error_semantic(errors, filename, line, 0,
+						"redefinition of function '%.*s' (previous definition at %s:%d)",
 						(int)name.len, name.start, existing->filename, existing->line);
-				error_list_add(errors, a, msg, filename, line, 0);
 				return (false);
 			}
 			return (true);
 		}
 	}
 
-	if (global->function_count >= MAX_FUNCS)
+	if (global->function_count >= MAX_FUNCTION_COUNT)
 	{
-		error_list_add(errors, a, "too many functions", filename, line, 0);
+		error_semantic(errors, filename, line, 0,
+				"too many functions (max %d)", MAX_FUNCTION_COUNT);
 		return (false);
 	}
 
@@ -342,7 +328,7 @@ bool	global_declare_function(GlobalScope *global, Arena *a, ErrorList *errors,
 	return (true);
 }
 
-FunctionInfo *global_lookup_function(GlobalScope *global, StringView name)
+FunctionInfo *semantic_global_lookup_function(GlobalScope *global, StringView name)
 {
 	for (size_t i = 0; i < global->function_count; ++i)
 	{
@@ -354,40 +340,36 @@ FunctionInfo *global_lookup_function(GlobalScope *global, StringView name)
 
 static bool analyze_node(SemanticAnalyzer *sa, ASTNode *node)
 {
-	bool result = true;
-	if (node->type == AST_FUNCTION)
+	if (node->type != AST_FUNCTION)
+		return (false);
+	if (node->function.is_prototype)
+		return (true);
+	sa->current_return_type = TYPE_INT64; // TODO Get from function
+	semantic_scope_enter(sa);
+	bool params_ok = true;
+	for (size_t i = 0; i < node->function.param_count; ++i)
 	{
-		for (size_t i = 0; i < node->function.param_count; ++i)
-		{
-			Parameter *param = &node->function.params[i];
-			if (!scope_declare(sa, param->name, param->type, node->line))
-				result = false;
-		}
-		ASTNode *body = node->function.body;
-		if (body && body->type == AST_BLOCK)
-		{
-			for (size_t i = 0; i < body->block.count; ++i)
-			{
-				if (!analyze_statement(sa, body->block.statements[i]))
-					result = false;
-			}
-		}
+		Parameter *param = &node->function.params[i];
+		if (!semantic_scope_declare(sa, param->name, 
+					param->type, node->line))
+			params_ok = false;
 	}
-	else if (node->type == AST_BLOCK)
-	{
-		for (size_t i = 0; i < node->block.count; ++i)
-		{
-			if (!analyze_statement(sa, node->block.statements[i]))
-				result = false;
-		}
-	}
-	else
-		result = analyze_expression(sa, node);
 
-	return (result);
+	bool body_ok = true;
+	ASTNode *body = node->function.body;
+	if (body && body->type == AST_BLOCK)
+	{
+		for (size_t i = 0; i < body->block.count; ++i)
+		{
+			if (!analyze_statement(sa, body->block.statements[i]))
+				body_ok = false;
+		}
+	}
+	semantic_scope_exit(sa);
+	return (params_ok && body_ok);
 }
 
-bool semantic_analyze(Arena *a, CompilationUnit *unit, ErrorList *errors, GlobalScope *global)
+bool semantic_analyze(Arena *a, CompilationUnit *unit, ErrorContext *errors, GlobalScope *global)
 {
 	SemanticAnalyzer sa = {
 		.arena = a,
@@ -410,16 +392,29 @@ bool semantic_analyze(Arena *a, CompilationUnit *unit, ErrorList *errors, Global
 			for (size_t j = 0; j < sa.visible_count; ++j)
 			{
 				if (sv_eq(sa.visible_funcs[j], node->function.name))
+				{
 					already_visible = true;
+					break;
+				}
 			}
 			if (!already_visible)
+			{
+				if (sa.visible_count >= MAX_FUNCTION_COUNT)
+				{
+					error_semantic(errors, unit->file.name, node->line, 0,
+							"too many functions");
+					return (false);
+				}
 				sa.visible_funcs[sa.visible_count++] = node->function.name;
+			}
 		}
-		scope_enter(&sa);
-			if (!analyze_node(&sa, node))
-				all_ok = false;
-		scope_exit(&sa);
 	}
 
+	for (size_t i = 0; i < unit->ast->translation_unit.count; ++i)
+	{
+		ASTNode *node = unit->ast->translation_unit.declarations[i];
+		if (!analyze_node(&sa, node))
+			all_ok = false;
+	}
 	return (all_ok);
 }

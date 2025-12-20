@@ -15,7 +15,7 @@ typedef struct {
 } Symbol;
 
 typedef struct {
-	Symbol	entries[SYMTAB_SIZE];
+	Symbol	entries[SYMBOL_TABLE_SIZE];
 } SymbolTable;
 
 typedef enum {
@@ -63,8 +63,8 @@ typedef struct {
 	StringView	name;
 } IRFunction;
 
-Symbol*			symtab_lookup(SymbolTable *st, StringView name);
-void			symtab_add(SymbolTable *st, StringView name, size_t vreg);
+Symbol*			symbol_table_lookup(SymbolTable *st, StringView name);
+void			symbol_table_add(SymbolTable *st, StringView name, size_t vreg);
 
 IRFunction		*ir_gen(Arena *a, ASTNode *root);
 void			ir_print(IRFunction *func);

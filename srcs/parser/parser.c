@@ -1,63 +1,97 @@
 #include "parser.h"
 #include "ast.h"
+#include "defines.h"
 #include "lexer.h"
 #include <stdio.h>
 
-static ASTNode	*parse_expression(Parser *p, Precedence precedence);
-static ASTNode	*parse_identifier(Parser *p);
-static ASTNode	*parse_grouping(Parser *p);
-static ASTNode	*parse_number(Parser *p);
-static ASTNode	*parse_unary(Parser *p);
-static ASTNode	*parse_binary(Parser *p, ASTNode *left);
-static ASTNode	*parse_statement(Parser *p);
-static ASTNode	*parse_block(Parser *p);
-static ASTNode	*parse_function(Parser *p);
-static ASTNode	*parse_call(Parser *p, ASTNode *callee);
+static ASTNode		*parse_expression(Parser *parser, Precedence precedence);
+static ASTNode		*parse_identifier(Parser *parser);
+static ASTNode		*parse_grouping(Parser *parser);
+static ASTNode		*parse_number(Parser *parser);
+static ASTNode		*parse_unary(Parser *parser);
+static ASTNode		*parse_binary(Parser *parser, ASTNode *left);
+static ASTNode		*parse_statement(Parser *parser);
+static ASTNode		*parse_block(Parser *parser);
+static ASTNode		*parse_function(Parser *parser);
+static ASTNode		*parse_call(Parser *parser, ASTNode *callee);
+static void			parser_advance(Parser *parser);
+static const char	*token_type_name(TokenType type);
 
-static void report_error(Parser *p, const char *msg)
+static void parser_error(Parser *parser, const char *fmt, ...)
 {
-	const char *filename = p->lexer->file->name;
-    int line = p->current.line;
-    int col = p->current.column;
-    
-    fprintf(stderr, "%s:%d:%d: error: %s\n", 
-            filename, line, col, msg);
+	if (parser->panic_mode)
+		return;
+	parser->panic_mode = true;
+	va_list	args;
+	va_start(args, fmt);
+	char	buffer[512];
+	vsnprintf(buffer, sizeof(buffer), fmt, args);
+	va_end(args);
+
+	error_parser(parser->errors, parser->lexer->file->name,
+			parser->current.line, parser->current.column,
+			"%s", buffer);
 }
 
-static void	p_advance(Parser *p)
+static void	parser_synchronize(Parser *parser)
 {
-	p->current = p->next;
+	parser->panic_mode = false;
+	while (parser->next.type != TOKEN_EOF)
+	{
+		if (parser->current.type == TOKEN_SEMICOLON)
+			return;
+		switch (parser->next.type)
+		{
+			case TOKEN_IF:
+			case TOKEN_WHILE:
+			case TOKEN_RETURN:
+			case TOKEN_INT:
+			case TOKEN_LBRACE:
+				return;
+			default:
+				break;
+		}
+		parser_advance(parser);
+	}
+}
+
+static void	parser_advance(Parser *parser)
+{
+	parser->current = parser->next;
 	while (true)
 	{
-		p->next = lexer_next(p->lexer);
-		if (p->next.type != TOKEN_ERROR)
+		parser->next = lexer_next(parser->lexer);
+		if (parser->next.type != TOKEN_ERROR)
 			break;
 	}
 }
 
-static void	consume(Parser *p, TokenType type, const char *message)
+static void	parser_consume(Parser *parser, TokenType type, const char *message)
 {
-	if (p->next.type == type)
+	if (parser->next.type == type)
 	{
-		p_advance(p);
+		parser_advance(parser);
+		parser->panic_mode = false;
 		return;
 	}
-	report_error(p, message);
+	parser_error(parser, "%s (got %s)", message, 
+			token_type_name(parser->next.type));
+	parser_synchronize(parser);
 }
 
-static bool inline match(Parser *p, TokenType type)
+static bool inline match(Parser *parser, TokenType type)
 {
-	if (p->next.type == type)
+	if (parser->next.type == type)
 	{
-		p_advance(p);
+		parser_advance(parser);
 		return (true);
 	}
 	return (false);
 }
 
-static bool inline check(Parser *p, TokenType type)
+static bool inline check(Parser *parser, TokenType type)
 {
-	return (p->next.type == type);
+	return (parser->next.type == type);
 }
 
 static Precedence	get_token_precedence(TokenType type)
@@ -83,65 +117,77 @@ static Precedence	get_token_precedence(TokenType type)
 	}
 }
 
-static ASTNode	*parse_call(Parser *p, ASTNode *callee)
+static ASTNode	*parse_call(Parser *parser, ASTNode *callee)
 {
 	if (callee->type != AST_IDENTIFIER)
 	{
-		report_error(p, "Can only call functions");
+		parser_error(parser, "Can only call functions");
 		return (NULL);
 	}
 
-	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	node->type = AST_CALL;
 	node->call.function_name = callee->identifier.name;
 	node->line = callee->line;
 	node->column = callee->column;
 
-	ASTNode **args = arena_alloc(p->arena, sizeof(ASTNode*) * MAX_ARGS);
+	ASTNode **args = arena_alloc(parser->arena, sizeof(ASTNode*) * MAX_PARAMS_PER_FUNCTION);
 	size_t arg_count = 0;
 
-	if (!check(p, TOKEN_RPAREN))
+	if (!check(parser, TOKEN_RPAREN))
 	{
 		do
 		{
-			args[arg_count++] = parse_expression(p, PREC_ASSIGNMENT);
-		} while (match(p, TOKEN_COMMA));
+			if (arg_count >= MAX_PARAMS_PER_FUNCTION)
+			{
+				parser_error(parser, "Too many arguments (max %d)",
+						MAX_PARAMS_PER_FUNCTION);
+				parser_synchronize(parser);
+				break;
+			}
+			ASTNode *arg = parse_expression(parser, PREC_ASSIGNMENT);
+			if (!arg)
+			{
+				parser_synchronize(parser);
+				break;
+			}
+			args[arg_count++] = arg;
+		} while (match(parser, TOKEN_COMMA));
 	}
 
-	consume(p, TOKEN_RPAREN, "Expected ')' after arguments");
+	parser_consume(parser, TOKEN_RPAREN, "Expected ')' after arguments");
 	node->call.args = args;
 	node->call.arg_count = arg_count;
 
 	return (node);
-
 }
 
-static ASTNode	*parse_identifier(Parser *p)
+static ASTNode	*parse_identifier(Parser *parser)
 {
-	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	node->type = AST_IDENTIFIER;
-	node->identifier.name = p->current.text;
-	node->line = p->current.line;
+	node->identifier.name = parser->current.text;
+	node->line = parser->current.line;
 	return (node);
 }
 
-static ASTNode	*parse_statement(Parser *p)
+static ASTNode	*parse_statement(Parser *parser)
 {
-	if (check(p, TOKEN_LBRACE))
-		return (parse_block(p));
+	if (check(parser, TOKEN_LBRACE))
+		return (parse_block(parser));
 
-	if (match(p, TOKEN_INT))
+	if (match(parser, TOKEN_INT))
 	{
-        consume(p, TOKEN_IDENTIFIER, "Expected variable name");
-        StringView var_name = p->current.text;
+        parser_consume(parser, TOKEN_IDENTIFIER, "Expected variable name");
+        StringView var_name = parser->current.text;
 
 		ASTNode *init = NULL;
-		if (match(p, TOKEN_EQUAL))
-			init = parse_expression(p, PREC_NONE);
+		if (match(parser, TOKEN_EQUAL))
+			init = parse_expression(parser, PREC_NONE);
 
-        consume(p, TOKEN_SEMICOLON, "Expected ';' after variable declaration");
+        parser_consume(parser, TOKEN_SEMICOLON, "Expected ';' after variable declaration");
 
-        ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+        ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
         *node = (ASTNode){
             .type = AST_VAR_DECL,
             .var_decl = {
@@ -152,15 +198,15 @@ static ASTNode	*parse_statement(Parser *p)
         return (node);
 	}
 
-	if (match(p, TOKEN_RETURN))
+	if (match(parser, TOKEN_RETURN))
 	{
 		ASTNode *expr = NULL;
 		
-		if (!check(p, TOKEN_SEMICOLON))
-			expr = parse_expression(p, PREC_NONE);
-        consume(p, TOKEN_SEMICOLON, "Expected ';' after return");
+		if (!check(parser, TOKEN_SEMICOLON))
+			expr = parse_expression(parser, PREC_NONE);
+        parser_consume(parser, TOKEN_SEMICOLON, "Expected ';' after return");
         
-        ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+        ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
         *node = (ASTNode){
             .type = AST_RETURN,
             .return_stmt = { .expression = expr }
@@ -168,19 +214,19 @@ static ASTNode	*parse_statement(Parser *p)
         return (node);
     }
 
-	if (match(p, TOKEN_IF))
+	if (match(parser, TOKEN_IF))
 	{
-		consume(p, TOKEN_LPAREN, "Expected '(' after 'if'");
-		ASTNode *condition = parse_expression(p, PREC_NONE);
-		consume(p, TOKEN_RPAREN, "Expected ')' after condition");
+		parser_consume(parser, TOKEN_LPAREN, "Expected '(' after 'if'");
+		ASTNode *condition = parse_expression(parser, PREC_NONE);
+		parser_consume(parser, TOKEN_RPAREN, "Expected ')' after condition");
 
-		ASTNode *then_branch = parse_statement(p);
+		ASTNode *then_branch = parse_statement(parser);
 		ASTNode *else_branch = NULL;
 
-		if (match(p, TOKEN_ELSE))
-			else_branch = parse_statement(p);
+		if (match(parser, TOKEN_ELSE))
+			else_branch = parse_statement(parser);
 
-		ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+		ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 		*node = (ASTNode){
 			.type = AST_IF,
 			.if_stmt = {
@@ -192,13 +238,13 @@ static ASTNode	*parse_statement(Parser *p)
 		return (node);
 	}
 
-	if (match(p, TOKEN_WHILE))
+	if (match(parser, TOKEN_WHILE))
 	{
-		consume(p, TOKEN_LPAREN, "Expected '(' after 'while'");
-		ASTNode *condition = parse_expression(p, PREC_NONE);
-		consume(p, TOKEN_RPAREN, "Expected ')' after condition");
-		ASTNode *body = parse_statement(p);
-		ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+		parser_consume(parser, TOKEN_LPAREN, "Expected '(' after 'while'");
+		ASTNode *condition = parse_expression(parser, PREC_NONE);
+		parser_consume(parser, TOKEN_RPAREN, "Expected ')' after condition");
+		ASTNode *body = parse_statement(parser);
+		ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 		*node = (ASTNode){
 			.type = AST_WHILE,
 			.while_stmt = { 
@@ -209,24 +255,39 @@ static ASTNode	*parse_statement(Parser *p)
 		return (node);
 	}
 
-	ASTNode *expr = parse_expression(p, PREC_NONE);
-    consume(p, TOKEN_SEMICOLON, "Expected ';' after expression");
+	ASTNode *expr = parse_expression(parser, PREC_NONE);
+    parser_consume(parser, TOKEN_SEMICOLON, "Expected ';' after expression");
     return (expr);
 }
 
-ASTNode* parse_block(Parser *p)
+ASTNode* parse_block(Parser *parser)
 {
-    consume(p, TOKEN_LBRACE, "Expected '{'");
+    parser_consume(parser, TOKEN_LBRACE, "Expected '{'");
     
-    ASTNode **stmts = arena_alloc(p->arena, sizeof(ASTNode*) * 256);
+    ASTNode **stmts = arena_alloc(
+			parser->arena, sizeof(ASTNode*) * MAX_BLOCK_STATEMENTS);
     size_t count = 0;
     
-    while (!check(p, TOKEN_RBRACE) && !check(p, TOKEN_EOF)) {
-        stmts[count++] = parse_statement(p);
+    while (!check(parser, TOKEN_RBRACE) 
+			&& !check(parser, TOKEN_EOF))
+	{
+		if (count >= MAX_BLOCK_STATEMENTS)
+		{
+			parser_error(parser, 
+					"Block too large (max %d statements)",
+					MAX_BLOCK_STATEMENTS);
+			parser_synchronize(parser);
+			break;
+		}
+		ASTNode *stmt = parse_statement(parser);
+		if (stmt)
+			stmts[count++] = stmt;
+		else
+			parser_synchronize(parser);
     }
     
-    consume(p, TOKEN_RBRACE, "Expected '}'");
-    ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+    parser_consume(parser, TOKEN_RBRACE, "Expected '}'");
+    ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
     *node = (ASTNode){
         .type = AST_BLOCK,
         .block = {
@@ -237,32 +298,32 @@ ASTNode* parse_block(Parser *p)
     return (node);
 }
 
-static ASTNode	*parse_prefix(Parser *p)
+static ASTNode	*parse_prefix(Parser *parser)
 {
-	switch (p->current.type)
+	switch (parser->current.type)
 	{
-		case TOKEN_IDENTIFIER:	return (parse_identifier(p));
-		case TOKEN_NUMBER:		return (parse_number(p));
-		case TOKEN_LPAREN:		return (parse_grouping(p));
-		case TOKEN_MINUS:		return (parse_unary(p));
+		case TOKEN_IDENTIFIER:	return (parse_identifier(parser));
+		case TOKEN_NUMBER:		return (parse_number(parser));
+		case TOKEN_LPAREN:		return (parse_grouping(parser));
+		case TOKEN_MINUS:		return (parse_unary(parser));
 		default:
-			report_error(p, "Expect expression");
+			parser_error(parser, "Expect expression");
 			return (NULL);
 	}
 }
 
-static ASTNode	*parse_infix(Parser *p, ASTNode	*left)
+static ASTNode	*parse_infix(Parser *parser, ASTNode	*left)
 {
-	TokenType operator_type = p->current.type;
+	TokenType operator_type = parser->current.type;
 	if (operator_type == TOKEN_LPAREN)
-		return (parse_call(p, left));
+		return (parse_call(parser, left));
 
 	if (operator_type == TOKEN_EQUAL)
 	{
-		ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+		ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 		node->type = AST_ASSIGNMENT;
 		node->assignment.var_name = left->identifier.name;
-		node->assignment.value = parse_expression(p, PREC_ASSIGNMENT);
+		node->assignment.value = parse_expression(parser, PREC_ASSIGNMENT);
 		return (node);
 	}
 
@@ -278,48 +339,64 @@ static ASTNode	*parse_infix(Parser *p, ASTNode	*left)
 		case TOKEN_LESS_EQUAL:
 		case TOKEN_GREATER:
 		case TOKEN_GREATER_EQUAL:
-			return (parse_binary(p, left));
+			return (parse_binary(parser, left));
 		default:
 			return (left);
 	}
 }
 
-static ASTNode	*parse_expression(Parser *p, Precedence prec)
+static ASTNode	*parse_expression(Parser *parser, Precedence precedence)
 {
-	p_advance(p);
-
-	ASTNode *left = parse_prefix(p);
-	if (!left)
-		return (NULL);
-	while (prec < get_token_precedence(p->next.type))
+	if (parser->expr_depth >= MAX_EXPRESSION_DEPTH)
 	{
-		p_advance(p);
-		left = parse_infix(p, left);
+		parser_error(parser, 
+				"Expression too deeply nested (max %d)",
+				MAX_EXPRESSION_DEPTH);
+		return (NULL);
 	}
+	parser->expr_depth++;
+	parser_advance(parser);
 
+	ASTNode *left = parse_prefix(parser);
+	if (!left)
+	{
+		parser->expr_depth--;
+		return (NULL);
+	}
+	while (precedence < get_token_precedence(parser->next.type))
+	{
+		parser_advance(parser);
+		left = parse_infix(parser, left);
+		if (!left)
+		{
+			parser->expr_depth--;
+			return (NULL);
+		}
+	}
+	parser->expr_depth--;
 	return (left);
 }
 
-static ASTNode	*parse_number(Parser *p)
+static ASTNode	*parse_number(Parser *parser)
 {
-	ASTNode	*node = arena_alloc(p->arena, sizeof(ASTNode));
+	ASTNode	*node = arena_alloc(parser->arena, sizeof(ASTNode));
 	node->type = AST_NUMBER;
-	node->number.value = p->current.text;
-	node->line = p->current.line;
+	node->number.value = parser->current.text;
+	node->line = parser->current.line;
 	return (node);
 }
 
-static ASTNode	*parse_grouping(Parser *p)
+static ASTNode	*parse_grouping(Parser *parser)
 {
-	ASTNode	*expression = parse_expression(p, PREC_NONE);
-	consume(p, TOKEN_RPAREN, "Expect ')' after expression.");
+	ASTNode	*expression = parse_expression(parser, PREC_NONE);
+	parser_consume(parser, TOKEN_RPAREN, "Expect ')' after expression.");
 	return (expression);
 }
 
-static ASTNode	*parse_unary(Parser *p)
+static ASTNode	*parse_unary(Parser *parser)
 {
-	TokenType operator_type = p->current.type;
-	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+	TokenType operator_type = parser->current.type;
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 
 	switch (operator_type)
 	{
@@ -328,14 +405,14 @@ static ASTNode	*parse_unary(Parser *p)
 		default:			node->type = AST_NUMBER; break;
 	}
 
-	node->unary.operand = parse_expression(p, PREC_UNARY);
+	node->unary.operand = parse_expression(parser, PREC_UNARY);
 	return (node);
 }
 
-static ASTNode	*parse_binary(Parser *p, ASTNode *left)
+static ASTNode	*parse_binary(Parser *parser, ASTNode *left)
 {
-	TokenType operator_type = p->current.type;
-	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+	TokenType operator_type = parser->current.type;
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 
 	switch (operator_type)
 	{
@@ -352,54 +429,54 @@ static ASTNode	*parse_binary(Parser *p, ASTNode *left)
 		default: break;
 	}
 
-	Precedence prec = get_token_precedence(operator_type);
+	Precedence precedence = get_token_precedence(operator_type);
 	node->binary.left = left;
-	node->binary.right = parse_expression(p, (Precedence)(prec));
+	node->binary.right = parse_expression(parser, (Precedence)(precedence));
 	return (node);
 }
 
-static ASTNode	*parse_function(Parser *p)
+static ASTNode	*parse_function(Parser *parser)
 {
-	if (!match(p, TOKEN_INT))
+	if (!match(parser, TOKEN_INT))
 		return (NULL);
 
-	consume(p, TOKEN_IDENTIFIER, "Expected function name.");
-	StringView func_name = p->current.text;
+	parser_consume(parser, TOKEN_IDENTIFIER, "Expected function name.");
+	StringView func_name = parser->current.text;
 
-	consume(p, TOKEN_LPAREN, "Expected '(' after function name.");
+	parser_consume(parser, TOKEN_LPAREN, "Expected '(' after function name.");
 
 	Parameter *params = NULL;
 	size_t param_count = 0;
 
-	if (!check(p, TOKEN_RPAREN))
+	if (!check(parser, TOKEN_RPAREN))
 	{
-		params = arena_alloc(p->arena, sizeof(Parameter) * 16);
-		if (check(p, TOKEN_IDENTIFIER) && sv_eq_cstr(p->next.text, "void"))
-			p_advance(p);
+		params = arena_alloc(parser->arena, sizeof(Parameter) * 16);
+		if (check(parser, TOKEN_IDENTIFIER) && sv_eq_cstr(parser->next.text, "void"))
+			parser_advance(parser);
 		else
 		{
 			do
 			{
-				consume(p, TOKEN_INT, "Expected parameter type");
-				consume(p, TOKEN_IDENTIFIER, "Expected parameter name");
+				parser_consume(parser, TOKEN_INT, "Expected parameter type");
+				parser_consume(parser, TOKEN_IDENTIFIER, "Expected parameter name");
 				params[param_count++] = (Parameter){
-					.name = p->current.text,
+					.name = parser->current.text,
 					.type = TYPE_INT64
 				};
-			} while (match(p, TOKEN_COMMA));
+			} while (match(parser, TOKEN_COMMA));
 		}
 	}
 
-	consume(p, TOKEN_RPAREN, "Expected ')' after parameters.");
+	parser_consume(parser, TOKEN_RPAREN, "Expected ')' after parameters.");
 
 	ASTNode *body = NULL;
 	bool is_prototype = false;
-	if (match(p, TOKEN_SEMICOLON))
+	if (match(parser, TOKEN_SEMICOLON))
 		is_prototype = true;
 	else
-		body = parse_block(p);
+		body = parse_block(parser);
 
-	ASTNode *node = arena_alloc(p->arena, sizeof(ASTNode));
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_FUNCTION,
 		.function = {
@@ -413,28 +490,30 @@ static ASTNode	*parse_function(Parser *p)
 	return (node);
 }
 
-ASTNode	*parse(Lexer *l, Arena *a)
+ASTNode	*parser_parse(Lexer *lexer, Arena *arena, ErrorContext *errors)
 {
-	Parser p = {0};
-	p.lexer = l;
-	p.arena = a;
-	p_advance(&p);
+	Parser parser = {0};
+	parser.lexer = lexer;
+	parser.arena = arena;
+	parser.errors = errors;
+	parser_advance(&parser);
 
-	ASTNode **declarations = arena_alloc(a, sizeof(ASTNode*) * MAX_FUNCS);
+	ASTNode **declarations = arena_alloc(
+			arena, sizeof(ASTNode*) * MAX_FUNCTION_COUNT);
 	size_t count = 0;
 
-	while (!check(&p, TOKEN_EOF))
+	while (!check(&parser, TOKEN_EOF))
 	{
-		if (check(&p, TOKEN_INT))
-			declarations[count++] = parse_function(&p);
+		if (check(&parser, TOKEN_INT))
+			declarations[count++] = parse_function(&parser);
 		else
 		{
-			report_error(&p, "Expected function declaration.");
+			parser_error(&parser, "Expected function declaration.");
 			return (NULL);
 		}
 	}
 
-	ASTNode *node = arena_alloc(a, sizeof(ASTNode));
+	ASTNode *node = arena_alloc(arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_TRANSLATION_UNIT,
 		.translation_unit = {
@@ -444,4 +523,39 @@ ASTNode	*parse(Lexer *l, Arena *a)
 	};
 
 	return (node);
+}
+
+static const char	*token_type_name(TokenType type)
+{
+	switch (type)
+	{
+		case TOKEN_EOF:				return "end of file";
+		case TOKEN_INT:				return "'int'";
+		case TOKEN_IF:				return "'if'";
+		case TOKEN_ELSE:			return "'else'";
+		case TOKEN_WHILE:			return "'while'";
+		case TOKEN_RETURN:			return "'return'";
+		case TOKEN_NUMBER:			return "number";
+		case TOKEN_IDENTIFIER:		return "identifier";
+		case TOKEN_PLUS:			return "'+'";
+		case TOKEN_MINUS:			return "'-'";
+		case TOKEN_STAR:			return "'*'";
+		case TOKEN_SLASH:			return "'/'";
+		case TOKEN_BANG:			return "'!'";
+		case TOKEN_EQUAL_EQUAL:		return "'=='";
+		case TOKEN_BANG_EQUAL:		return "'!='";
+		case TOKEN_LESS:			return "'<'";
+		case TOKEN_LESS_EQUAL:		return "'<='";
+		case TOKEN_GREATER:			return "'>'";
+		case TOKEN_GREATER_EQUAL:	return "'>='";
+		case TOKEN_EQUAL:			return "'='";
+		case TOKEN_SEMICOLON:		return "';'";
+		case TOKEN_LPAREN:			return "'('";
+		case TOKEN_RPAREN:			return "')'";
+		case TOKEN_LBRACE:			return "'{'";
+		case TOKEN_RBRACE:			return "'}'";
+		case TOKEN_COMMA:			return "','";
+		case TOKEN_ERROR:			return "invalid token";
+		default:					return "unknown token";
+	}
 }

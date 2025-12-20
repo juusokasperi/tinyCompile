@@ -7,6 +7,15 @@ DIR_PARSER = parser/
 SRCS_SEMANTIC = semantic.c
 DIR_SEMANTIC = semantic/
 
+SRCS_CLEANUP = cleanup.c
+DIR_CLEANUP = cleanup/
+
+SRCS_ERROR = error_handler.c
+DIR_ERROR = error_handler/
+
+SRCS_VALIDATION = validation.c
+DIR_VALIDATION = validation/
+
 SRCS_COMPILE = compile.c
 DIR_COMPILE = compile/
 
@@ -22,7 +31,10 @@ SRCS += $(addprefix $(DIR_LEXER), $(SRCS_LEXER)) \
 		$(addprefix $(DIR_SEMANTIC), $(SRCS_SEMANTIC)) \
 		$(addprefix $(DIR_COMPILE), $(SRCS_COMPILE)) \
 		$(addprefix $(DIR_IR), $(SRCS_IR)) \
-		$(addprefix $(DIR_JIT), $(SRCS_JIT))
+		$(addprefix $(DIR_JIT), $(SRCS_JIT)) \
+		$(addprefix $(DIR_ERROR), $(SRCS_ERROR)) \
+		$(addprefix $(DIR_VALIDATION), $(SRCS_VALIDATION)) \
+		$(addprefix $(DIR_CLEANUP), $(SRCS_CLEANUP))
 
 SRCS_DIR = srcs/
 

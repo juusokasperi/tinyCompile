@@ -8,6 +8,7 @@
 # include "string_view.h"
 # include "ir.h"
 # include "memarena.h"
+# include "error_handler.h"
 
 typedef enum {
     REG_RAX = 0,
@@ -121,7 +122,7 @@ typedef struct {
 } CallSiteList;
 
 typedef struct {
-	size_t	arg_vregs[MAX_ARGS];
+	size_t	arg_vregs[MAX_PARAMS_PER_FUNCTION];
 	size_t	count;
 } PendingCall;
 
@@ -138,7 +139,7 @@ typedef struct {
 
 void		jit_ctx_init(JITContext *ctx, Arena *a);
 JITResult	jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *func);
-bool		jit_link_all(JITContext *ctx);
+bool		jit_link_all(JITContext *ctx, ErrorContext *errors);
 
 void		emit_u8(uint8_t **buf, size_t *count, uint8_t byte);
 void		emit_u32(uint8_t **buf, size_t *count, uint32_t val);

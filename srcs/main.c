@@ -1,3 +1,4 @@
+#include <stddef.h>
 #define MEMARENA_IMPLEMENTATION
 #include "memarena.h"
 #include "ast.h"
@@ -6,87 +7,68 @@
 #include "compile.h"
 #include "layout.h"
 #include "utils.h"
+#include "defines.h"
+#include "error_handler.h"
+#include "cleanup.h"
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
 
-static void cleanup_files(CompilationContext *ctx)
-{
-	for (size_t i = 0; i < ctx->count; ++i)
-	{
-		if (ctx->units[i].file.data)
-			munmap((void *)ctx->units[i].file.data, ctx->units[i].file.length);
-	}
-}
-
-static bool check_file_names(int argc, char **argv)
-{
-	for (int i = 1; i < argc; ++i)
-	{
-		int len = strlen(argv[i]);
-		if (len < 2 || strncmp(argv[i] + len - 2, ".c", 2) != 0)
-			return (false);
-	}
-	return (true);
-}
-
 int main(int argc, char **argv)
 {
-	print_header();
-	if (argc < 2)
-	{
-		fprintf(stderr, "Usage: %s <file1.c> [file2.c ...]\n", argv[0]);
-		return (1);
-	}
-	if (!check_file_names(argc, argv))
-	{
-		fprintf(stderr, BOLD_RED "  > tinyCompile supports only files with .c extension\n\n" RESET);
-		return (1);
-	}
+	int	exit_code = 1;
 
 	Arena ast_arena = arena_init(PROT_READ | PROT_WRITE);
 	Arena jit_arena = arena_init(PROT_READ | PROT_WRITE);
 
+	ErrorContext	errors;
+	error_context_init(&errors, &ast_arena);
+	ResourceTracker	resources;
+	resource_tracker_init(&resources, argc, &ast_arena);
+
+	print_header();
+	
+	print_phase(1, "INITIALIZATION");
 	CompilationContext ctx;
-	compile_ctx_init(&ctx, &ast_arena, argc - 1);
+	if (!compile_ctx_init(&ctx, &ast_arena, &errors, argc - 1))
+	{
+		fprintf(stderr, BOLD_RED "\n  > initialization failed\n" RESET);
+		goto cleanup;
+	}
 
 	for (int i = 1; i < argc; ++i)
 	{
-		if (!compile_ctx_add_file(&ctx, argv[i]))
+		int		fd;
+		void	*mapped;
+		size_t	size;
+		if (!compile_ctx_add_file(&ctx, argv[i], &resources, &fd, &mapped, &size))
 		{
-			cleanup_files(&ctx);
-			arena_free(&ast_arena);
-			arena_free(&jit_arena);
-			return (1);
+			fprintf(stderr, BOLD_RED "\n  > initialization failed\n" RESET);
+			goto cleanup;
 		}
 	}
 
-	print_phase(1, "PARSING");
+	print_phase(2, "PARSING");
 	if (!compile_parse_all(&ctx))
 	{
-		fprintf(stderr, BOLD_RED "\n  > parsing failed.\n" RESET);
-		compile_print_errors(&ctx);
-		cleanup_files(&ctx);
-		arena_free(&ast_arena);
-		arena_free(&jit_arena);
-		return (1);
+		fprintf(stderr, BOLD_RED "\n  > parsing failed\n" RESET);
+		goto cleanup;
 	}
 
-	print_phase(2, "SEMANTICS");
+	print_phase(3, "SEMANTICS");
 	if (!compile_analyze_all(&ctx))
 	{
-		fprintf(stderr, BOLD_RED "\n  > semantic analysis failed.\n" RESET);
-		compile_print_errors(&ctx);
-		cleanup_files(&ctx);
-		arena_free(&ast_arena);
-		arena_free(&jit_arena);
-		return (1);
+		fprintf(stderr, BOLD_RED "\n  > semantic analysis failed\n" RESET);
+		goto cleanup;
 	}
 
+	if (error_has_errors(&errors))
+		goto cleanup;
+
+	print_phase(4, "JIT");
 	JITContext jit_ctx;
 	jit_ctx_init(&jit_ctx, &jit_arena);
 
-	print_phase(3, "JIT");
 	for (size_t i = 0; i < ctx.count; ++i)
 	{
 		CompilationUnit *unit = &ctx.units[i];
@@ -104,10 +86,10 @@ int main(int argc, char **argv)
 			if (!ir)
 			{
 				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);
-				cleanup_files(&ctx);
-				arena_free(&ast_arena);
-				arena_free(&jit_arena);
-				return (1);
+				error_fatal(&errors, unit->file.name, func->line, 0,
+						"IR Generation failed for function '%.*s'",
+						(int)func->function.name.len, func->function.name.start);
+				goto cleanup;
 			}
 
 			if (sv_eq_cstr(func->function.name, "main"))
@@ -117,35 +99,29 @@ int main(int argc, char **argv)
 			if (!jit.code)
 			{
 				fprintf(stderr, BOLD_RED "  > compilation failed\n" RESET);
-				cleanup_files(&ctx);
-				arena_free(&ast_arena);
-				arena_free(&jit_arena);
-				return (1);
+				error_fatal(&errors, unit->file.name, func->line, 0,
+						"JIT compilation failed for function '%.*s'",
+						(int)func->function.name.len, func->function.name.start);
+				goto cleanup;
 			}
 		}
 	}
 	
-	if (!jit_link_all(&jit_ctx))
+	if (!jit_link_all(&jit_ctx, &errors))
 	{
 		fprintf(stderr, BOLD_RED "  > linking failed\n" RESET);
-		cleanup_files(&ctx);
-		arena_free(&ast_arena);
-		arena_free(&jit_arena);
-		return (1);
+		goto cleanup;
 	}
 
 	if (!arena_set_prot(&jit_arena, PROT_READ | PROT_EXEC))
 	{
 		perror(BOLD_RED "  > failed to set executable permissions" RESET);
-		printf("\n");
-		cleanup_files(&ctx);
-		arena_free(&ast_arena);
-		arena_free(&jit_arena);
-		return (1);
+		goto cleanup;
 	}
 
-	print_phase(4, "EXECUTION");
+	print_phase(5, "EXECUTION");
 	
+	bool found_main = false;
 	for (size_t i = 0; i < jit_ctx.registry.count; i++)
 	{
     	if (sv_eq_cstr(jit_ctx.registry.functions[i].name, "main"))
@@ -155,13 +131,24 @@ int main(int argc, char **argv)
 			printf(GREEN "  -----------------------------------------\n");
     		printf("   RETURN CODE >> " BOLD_WHITE "%lld" RESET "\n", result);
     		printf(GREEN "  -----------------------------------------\n" RESET);
+			found_main = true;
+			exit_code = 0;
         	break;
     	}
 	}
 
-	cleanup_files(&ctx);
+	if (!found_main)
+	{
+		error_fatal(&errors, NULL, 0, 0, "No 'main' function found.");
+		goto cleanup;
+	}
+
+cleanup:
+	if (error_has_errors(&errors) || error_has_fatal(&errors))
+		error_print_all(&errors);
+	resource_cleanup_all(&resources);
 	arena_free(&ast_arena);
 	arena_free(&jit_arena);
 
-	return (0);
+	return (exit_code);
 }
