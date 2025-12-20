@@ -32,7 +32,7 @@ static inline bool safe_increment(size_t *value, size_t limit, const char *name)
 
 static inline bool safe_add(size_t *dest, size_t value, size_t limit, const char *name)
 {
-    if (*dest > limit - value) {
+    if (value > limit || *dest > limit - value) {
         fprintf(stderr, "Addition overflow: %s (limit: %zu)\n", name, limit);
         return false;
     }
