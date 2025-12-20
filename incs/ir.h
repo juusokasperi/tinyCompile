@@ -6,7 +6,8 @@
 # include "string_view.h"
 # include "defines.h"
 # include <stdbool.h>
-#include <stddef.h>
+# include <stdlib.h>
+# include <stddef.h>
 
 typedef struct ScopeChange ScopeChange;
 
@@ -87,7 +88,9 @@ IROpcodeFormat	ir_opcode_format(IROpcode op);
     ( \
         ((f)->vreg_count >= MAX_VREGS_PER_FUNCTION) ? \
         ( \
-            fprintf(stderr, "Fatal: Function '%.*s' exceeds vreg limit (%d)\n", \
+            fprintf(stderr, \
+				"  > JIT INTERNAL ERROR\n" \
+				"    function '%.*s' vreg %zu exceeds limit %d\n", \
                     (int)(f)->name.len, (f)->name.start, MAX_VREGS_PER_FUNCTION), \
             exit(1), \
             0 \
