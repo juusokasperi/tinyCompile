@@ -33,6 +33,6 @@ typedef enum {
 	PREC_PRIMARY,
 } Precedence;
 
-ASTNode	*parse(Lexer *l, Arena *a);
+ASTNode	*parser_parse(Lexer *l, Arena *a, ErrorContext *e);
 
 #endif

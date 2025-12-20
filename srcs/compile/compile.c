@@ -86,7 +86,7 @@ bool compile_parse_all(CompilationContext *ctx)
 		printf ("  > parsing %s\n", unit->file.name);
 		Lexer lexer;
 		lexer_init(&lexer, &unit->file);
-		unit->ast = parse(&lexer, ctx->arena);
+		unit->ast = parser_parse(&lexer, ctx->arena, ctx->errors);
 		unit->parsed_ok = (unit->ast != NULL);
 		if (!unit->parsed_ok)
 		{

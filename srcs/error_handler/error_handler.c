@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/_types/_va_list.h>
 
 static const char	*category_names[] = {
 	"lexer",

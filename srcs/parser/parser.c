@@ -490,11 +490,12 @@ static ASTNode	*parse_function(Parser *parser)
 	return (node);
 }
 
-ASTNode	*parse(Lexer *lexer, Arena *arena)
+ASTNode	*parser_parse(Lexer *lexer, Arena *arena, ErrorContext *errors)
 {
 	Parser parser = {0};
 	parser.lexer = lexer;
 	parser.arena = arena;
+	parser.errors = errors;
 	parser_advance(&parser);
 
 	ASTNode **declarations = arena_alloc(
