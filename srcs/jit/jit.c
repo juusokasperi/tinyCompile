@@ -17,6 +17,14 @@ const X86Reg arg_registers[6] = {
 // Shared helper
 int32_t get_slot(size_t vreg)
 {
+	if (vreg >= MAX_VREGS_PER_FUNCTION)
+	{
+		fprintf(stderr, BOLD_RED
+				"  > JIT INTERNAL ERROR\n"
+				"    vreg %zu exceeds limit %d\n" RESET,
+				vreg, MAX_VREGS_PER_FUNCTION);
+		abort();
+	}
 	return -((int32_t)(vreg + 1) * 8);
 }
 
@@ -47,6 +55,7 @@ size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_count)
 	uint8_t	*curr = buf;
 	size_t	size = 0;
 
+	// 1. Standard prologue (Push RBP, move RBP, sub RSP)
 	emit_u8(&curr, &size, OP_PUSH + REG_RBP);
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, MOV_RM_R);
@@ -58,11 +67,28 @@ size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_count)
 		emit_u8(&curr, &size, MOD_REG | (EXT_SUB << 3) | REG_RSP);
         emit_u32(&curr, &size, (uint32_t)stack_size);
 	}
+
+	// 2. Handle register arguments
 	for (size_t i = 0; i < param_count && i < 6; i++)
 	{
         int32_t slot = get_slot(i);
         emit_store_local(&curr, &size, arg_registers[i], slot);
     }
+
+	// 3. Handle stack arguments
+	// Copy them from caller's frame to local frame
+	for (size_t i = 6; i < param_count; i++)
+	{
+		// Caller puts 7th arg at [RBP + 16], 8th at [RBP + 24], etc.
+		int32_t src_offset = 16 + (i - 6) * 8;
+		int32_t dest_slot = get_slot(i);
+
+		// MOV RAX, [RBP + src_offset]  (Load from caller)
+		emit_load_param(&curr, &size, REG_RAX, src_offset);
+
+		// MOV [RBP + dest_slot], RAX   (Save to local var)
+		emit_store_local(&curr, &size, REG_RAX, dest_slot);
+	}
 	return (size);
 }
 void jit_ctx_init(JITContext *ctx, Arena *a)

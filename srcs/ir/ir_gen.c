@@ -8,6 +8,7 @@ static size_t	gen_expression(Arena *a, IRFunction *f,
 static void		gen_statement(Arena *a, IRFunction *f, 
 		ASTNode *node, SymbolTable *symbol_table, size_t *last_reg);
 
+
 static void emit(Arena *a, IRFunction *f, IRInstruction inst)
 {
 	if (f->tail == NULL || f->tail->count >= IR_CHUNK_SIZE)
@@ -28,7 +29,7 @@ static void emit(Arena *a, IRFunction *f, IRInstruction inst)
 
 static size_t gen_number(Arena *a, IRFunction *f, ASTNode *node)
 {
-	size_t reg = f->vreg_count++;
+	size_t reg = IR_NEXT_VREG(f);
 	int64_t val = sv_to_int(a, node->number.value);
 	IRInstruction inst = { .opcode = IR_CONST, .dest = reg, .imm = val };
 	emit(a, f, inst);
@@ -58,7 +59,7 @@ static size_t gen_call(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symb
 		};
 		emit(a, f, arg_inst);
 	}
-	result_reg = f->vreg_count++;
+	result_reg = IR_NEXT_VREG(f);
 	IRInstruction call_inst = {
 		.opcode = IR_CALL,
 		.dest = result_reg,
@@ -75,7 +76,7 @@ static size_t gen_unary(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *sym
 	IROpcode	op;
 
 	operand = gen_expression(a, f, node->unary.operand, symbol_table);
-	dest = f->vreg_count++;
+	dest = IR_NEXT_VREG(f);
 	op = (node->type == AST_NOT) ? IR_NOT : IR_NEG;
 	emit(a, f, (IRInstruction){ .opcode = op, .dest = dest, .src_1 = operand });
 	return (dest);
@@ -85,7 +86,7 @@ static size_t gen_binary_op(Arena *a, IRFunction *f, ASTNode *node, SymbolTable 
 {
 	size_t		left = gen_expression(a, f, node->binary.left, symbol_table);
 	size_t		right = gen_expression(a, f, node->binary.right, symbol_table);
-	size_t		dest = f->vreg_count++;
+	size_t		dest = IR_NEXT_VREG(f);
 	IROpcode	op;
 
 	switch (node->type)
@@ -196,7 +197,7 @@ static void gen_var_decl(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *sy
 		init_reg = gen_expression(a, f, node->var_decl.initializer, symbol_table);
 	else
 	{
-		init_reg = f->vreg_count++;
+		init_reg = IR_NEXT_VREG(f);
 		IRInstruction inst = { .opcode = IR_CONST, .dest = init_reg, .imm = 0 };
 		emit(a, f, inst);
 	}
@@ -288,7 +289,7 @@ IRFunction *ir_gen(Arena *a, ASTNode *root)
 		for (size_t i = 0; i < root->function.param_count; ++i)
 		{
             Parameter *param = &root->function.params[i];
-            size_t vreg = f->vreg_count++;
+            size_t vreg = IR_NEXT_VREG(f);
             symbol_table_add(&symbol_table, param->name, vreg);
         }
 		ASTNode *body = root->function.body;
