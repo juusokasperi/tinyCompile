@@ -14,31 +14,6 @@
 #include <stdio.h>
 #include <sys/mman.h>
 
-static bool validate_arguments(int argc, char **argv, ErrorContext *errors)
-{
-	if (argc < 2)
-	{
-		error_fatal(errors, NULL, 0, 0, "Usage: %s <file1.c> [file2.c ...]", argv[0]);
-		return (false);
-	}
-	for (int i = 1; i < argc; ++i)
-	{
-		size_t len = strlen(argv[i]);
-		if (len < 2 || strncmp(argv[i] + len - 2, ".c", 2) != 0)
-		{
-			error_fatal(errors, argv[i], 0, 0, "Only .c files are supported");
-			return (false);
-		}
-	}
-	if (argc - 1 > MAX_SOURCE_FILES)
-	{
-		error_fatal(errors, NULL, 0, 0, "Too many files (max %d, got %d)",
-				MAX_SOURCE_FILES, argc - 1);
-		return (false);
-	}
-	return (true);
-}
-
 int main(int argc, char **argv)
 {
 	int	exit_code = 1;
@@ -53,8 +28,6 @@ int main(int argc, char **argv)
 
 	print_header();
 	
-	if (!validate_arguments(argc, argv, &errors))
-		goto cleanup;
 	CompilationContext ctx;
 	if (!compile_ctx_init(&ctx, &ast_arena, &errors, argc - 1))
 	{

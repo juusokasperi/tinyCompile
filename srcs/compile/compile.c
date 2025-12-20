@@ -15,6 +15,12 @@ bool compile_ctx_init(CompilationContext *ctx, Arena *arena,
 	ctx->arena = arena;
 	ctx->errors = errors;
 	ctx->count = 0;
+	if (file_count < 1)
+	{
+		error_fatal(errors, NULL, 0, 0,
+				"Expected at least 1 source file");
+		return (false);
+	}
 	if (file_count > MAX_SOURCE_FILES)
 	{
 		error_fatal(errors, NULL, 0, 0,
