@@ -53,7 +53,7 @@ void emit_store_local(uint8_t **buf, size_t *cnt, X86Reg src, int32_t disp)
 // "mov reg, [rbp + disp]"
 void emit_load_param(uint8_t **buf, size_t *cnt, X86Reg dst, int32_t disp)
 {
-	uint8_t	rex = get_rex(dst, 0);
+	uint8_t	rex = get_rex(0, dst);
 
     emit_u8(buf, cnt, rex);
     emit_u8(buf, cnt, MOV_R_RM); // 0x8B
