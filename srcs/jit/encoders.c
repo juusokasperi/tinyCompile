@@ -326,7 +326,7 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	for (size_t i = 0; i < pc->count && i < 6; ++i)
 	{
 		int32_t	arg_disp = get_slot(pc->arg_vregs[i]);
-		emit_load_param(&curr, &size, REG_RAX, arg_disp);
+		emit_load_param(&curr, &size, arg_registers[i], arg_disp);
 	}
 
 	// 5. Emit call
