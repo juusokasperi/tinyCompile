@@ -87,7 +87,7 @@ void emit_alu(uint8_t **buf, size_t *cnt, X86Opcode op, X86Reg dst, X86Reg src)
 
 void emit_imul_r64(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
 {
-	uint8_t	rex = get_rex(dst, src);
+	uint8_t	rex = get_rex(src, dst);
 
     emit_u8(buf, cnt, rex);
     emit_u8(buf, cnt, OP_IMUL_1);
