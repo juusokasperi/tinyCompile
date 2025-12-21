@@ -90,7 +90,7 @@ IROpcodeFormat	ir_opcode_format(IROpcode op);
         ( \
             fprintf(stderr, \
 				"  > JIT INTERNAL ERROR\n" \
-				"    function '%.*s' vreg %zu exceeds limit %d\n", \
+				"    function '%.*s' vreg exceeds limit %d\n", \
                     (int)(f)->name.len, (f)->name.start, MAX_VREGS_PER_FUNCTION), \
             exit(1), \
             0 \
