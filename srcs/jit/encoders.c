@@ -52,7 +52,7 @@ static inline size_t emit_jump(uint8_t *buf, size_t label_id, JITContext *ctx, u
 	}
 	else
 	{
-		Patch *p = arena_alloc(ctx->arena, sizeof(Patch));
+		Patch *p = arena_alloc(ctx->data_arena, sizeof(Patch));
 		p->label_id = label_id;
 		p->loc = curr;
 		p->next = ctx->patches;

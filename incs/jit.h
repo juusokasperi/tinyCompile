@@ -128,7 +128,7 @@ typedef struct {
 } PendingCall;
 
 typedef struct {
-	Arena 				*arena;
+	Arena 				*data_arena;
 	Arena				*exec_arena;
 	FunctionRegistry	registry;
 	CallSiteList		call_sites;

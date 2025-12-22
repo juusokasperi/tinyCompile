@@ -91,17 +91,17 @@ size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_count)
 	}
 	return (size);
 }
-void jit_ctx_init(JITContext *ctx, Arena *a, Arena *exec_arena)
+void jit_ctx_init(JITContext *ctx, Arena *data_arena, Arena *exec_arena)
 {
-	ctx->arena = a;
+	ctx->data_arena = data_arena;
 	ctx->exec_arena = exec_arena;
 	ctx->registry.capacity = MAX_FUNCTION_COUNT;
 	ctx->registry.count = 0;
-	ctx->registry.functions = arena_alloc(a, sizeof(CompiledFunction) * ctx->registry.capacity);
+	ctx->registry.functions = arena_alloc(data_arena, sizeof(CompiledFunction) * ctx->registry.capacity);
 
 	ctx->call_sites.capacity = MAX_CALL_SITES;
 	ctx->call_sites.count = 0;
-	ctx->call_sites.sites = arena_alloc(a, sizeof(CallSite) * ctx->call_sites.capacity);
+	ctx->call_sites.sites = arena_alloc(data_arena, sizeof(CallSite) * ctx->call_sites.capacity);
 	memset(&ctx->pending_call, 0, sizeof(PendingCall));
 }
 
@@ -260,7 +260,7 @@ bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
                 continue;
 			printf("  :: compiling symbol '%.*s'\n", (int)func->function.name.len, func->function.name.start);
 
-			IRFunction *ir = ir_gen(jit_ctx->arena, func);
+			IRFunction *ir = ir_gen(jit_ctx->data_arena, func);
 			if (!ir)
 			{
 				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);
