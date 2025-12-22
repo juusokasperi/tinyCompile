@@ -87,7 +87,7 @@ Token lexer_next(Lexer *l)
 
 static TokenType check_keyword(StringView text)
 {
-	#define X_TOKEN(name, str, is_keyword) \
+	#define X_TOKEN(name, str, is_keyword, prec, prefix_fn, infix_fn, stmt_fn) \
 		if (is_keyword && sv_eq_cstr(text, str)) return (name);
 	#include "lexer_tokens.def"
 	#undef X_TOKEN

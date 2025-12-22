@@ -1,8 +1,17 @@
 #include "parser.h"
 #include "ast.h"
 #include "defines.h"
+#include "error_handler.h"
 #include "lexer.h"
+#include "string_view.h"
 #include <stdio.h>
+
+static ASTNode		*parse_var_decl(Parser *parser);
+static ASTNode		*parse_return(Parser *parser);
+static ASTNode		*parse_if(Parser *parser);
+static ASTNode		*parse_while(Parser *parser);
+static ASTNode		*parse_expr_stmt(Parser *parser);
+static ASTNode		*parse_assignment(Parser *p, ASTNode *left);
 
 static ASTNode		*parse_expression(Parser *parser, Precedence precedence);
 static ASTNode		*parse_identifier(Parser *parser);
@@ -16,12 +25,162 @@ static ASTNode		*parse_function(Parser *parser);
 static ASTNode		*parse_call(Parser *parser, ASTNode *callee);
 static void			parser_advance(Parser *parser);
 static const char	*token_type_name(TokenType type);
+static void 		parser_error(Parser *parser, const char *fmt, ...);
 
-static const char *token_names[] = {
-	#define X_TOKEN(name, str, is_keyword) str,
+static bool inline	check(Parser *parser, TokenType type);
+static bool inline	match(Parser *parser, TokenType type);
+
+static void			parser_consume(Parser *parser, TokenType type, const char *message);
+	
+static const ParseRule rules[] = {
+	#define X_TOKEN(name, str, is_keyword, prec, prefix, infix, stmt) {str, prec, prefix, infix, stmt},
 	#include "lexer_tokens.def"
 	#undef X_TOKEN
 };
+
+static ASTNode	*parse_statement(Parser *parser)
+{
+	TokenType type = parser->next.type;
+	ParseStmtFn stmt_fn = rules[type].stmt;
+	if (stmt_fn)
+		return (stmt_fn(parser));
+
+	return (parse_expr_stmt(parser));
+}
+
+static const char	*token_type_name(TokenType type)
+{
+	size_t rule_count = sizeof(rules) / sizeof(rules[0]);
+	if (type < 0 || (size_t)type >= rule_count)
+		return ("UNKNOWN");
+	return (rules[type].name);
+}
+
+static Precedence	get_token_precedence(TokenType type)
+{
+	size_t rule_count = sizeof(rules) / sizeof(rules[0]);
+	if (type < 0 || (size_t)type >= rule_count)
+		return (PREC_NONE);
+	return (rules[type].prec);
+}
+
+static ASTNode	*parse_expression(Parser *parser, Precedence precedence)
+{
+	if (parser->expr_depth >= MAX_EXPRESSION_DEPTH)
+	{
+		parser_error(parser, 
+				"Expression too deeply nested (max %d)",
+				MAX_EXPRESSION_DEPTH);
+		return (NULL);
+	}
+	parser->expr_depth++;
+	parser_advance(parser);
+	ParsePrefixFn prefix = rules[parser->current.type].prefix;
+
+	if (prefix == NULL)
+	{
+		parser_error(parser, "Expect expression");
+		parser->expr_depth--;
+		return (NULL);
+	}
+
+	ASTNode *left = prefix(parser);
+	while (precedence < get_token_precedence(parser->next.type))
+	{
+		parser_advance(parser);
+		ParseInfixFn infix = rules[parser->current.type].infix;
+		if (infix)
+			left = infix(parser, left);
+	}
+	parser->expr_depth--;
+	return (left);
+}
+
+static ASTNode	*parse_assignment(Parser *parser, ASTNode *left)
+{
+	if (left->type != AST_IDENTIFIER)
+	{
+		parser_error(parser, "Invalid assignment target");
+		return (NULL);
+	}
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
+	node->type = AST_ASSIGNMENT;
+	node->assignment.var_name = left->identifier.name;
+	node->assignment.value = parse_expression(parser, PREC_ASSIGNMENT);
+	return (node);
+}
+
+static ASTNode	*parse_var_decl(Parser *parser)
+{
+	parser_consume(parser, TOKEN_INT, "Expected 'int'");
+	parser_consume(parser, TOKEN_IDENTIFIER, "Expected variable name");
+	StringView var_name = parser->current.text;
+	ASTNode *init = NULL;
+	if (match(parser, TOKEN_EQUAL))
+		init = parse_expression(parser, PREC_NONE);
+	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
+	*node = (ASTNode){
+		.type = AST_VAR_DECL,
+		.var_decl = { .var_name = var_name, .initializer = init }
+	};
+	return (node);
+}
+
+static ASTNode	*parse_return(Parser *parser)
+{
+	parser_consume(parser, TOKEN_RETURN, "Expected 'return'");
+	ASTNode *expr = NULL;
+	if (!check(parser, TOKEN_SEMICOLON))
+		expr = parse_expression(parser, PREC_NONE);
+	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
+	*node = (ASTNode){
+		.type = AST_RETURN,
+		.return_stmt = { .expression = expr }
+	};
+	return (node);
+}
+
+static ASTNode	*parse_if(Parser *parser)
+{
+	parser_consume(parser, TOKEN_IF, "Expected 'if'");
+	parser_consume(parser, TOKEN_LPAREN, "Expected '('");
+	ASTNode *condition = parse_expression(parser, PREC_NONE);
+	parser_consume(parser, TOKEN_RPAREN, "Expected ')'");
+	ASTNode *then_branch = parse_statement(parser);
+	ASTNode *else_branch = NULL;
+	if (match(parser, TOKEN_ELSE))
+		else_branch = parse_statement(parser);
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
+	*node = (ASTNode){
+		.type = AST_IF,
+		.if_stmt = { condition, then_branch, else_branch }
+	};
+	return (node);
+}
+
+static ASTNode	*parse_while(Parser *parser)
+{
+	parser_consume(parser, TOKEN_WHILE, "Expected 'while'");
+	parser_consume(parser, TOKEN_LPAREN, "Expected '('");
+	ASTNode *condition = parse_expression(parser, PREC_NONE);
+	parser_consume(parser, TOKEN_RPAREN, "Expected ')'");
+	ASTNode *body = parse_statement(parser);
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
+	*node = (ASTNode){
+		.type = AST_WHILE,
+		.while_stmt = { condition, body }
+	};
+	return (node);
+}
+
+static ASTNode	*parse_expr_stmt(Parser *parser)
+{
+	ASTNode *expr = parse_expression(parser, PREC_NONE);
+	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	return (expr);
+}
 
 static void parser_error(Parser *parser, const char *fmt, ...)
 {
@@ -100,29 +259,6 @@ static bool inline check(Parser *parser, TokenType type)
 	return (parser->next.type == type);
 }
 
-static Precedence	get_token_precedence(TokenType type)
-{
-	switch (type)
-	{
-		case TOKEN_EQUAL:			return PREC_ASSIGNMENT;
-		case TOKEN_LPAREN:			return PREC_CALL;
-
-		case TOKEN_EQUAL_EQUAL:
-		case TOKEN_BANG_EQUAL: 		return PREC_EQUALITY;
-
-		case TOKEN_LESS:
-		case TOKEN_LESS_EQUAL:
-		case TOKEN_GREATER:
-		case TOKEN_GREATER_EQUAL:	return PREC_COMPARISON;
-
-		case TOKEN_PLUS:
-		case TOKEN_MINUS:			return PREC_TERM;
-		case TOKEN_STAR:
-		case TOKEN_SLASH:			return PREC_FACTOR;
-		default:					return PREC_NONE;
-	}
-}
-
 static ASTNode	*parse_call(Parser *parser, ASTNode *callee)
 {
 	if (callee->type != AST_IDENTIFIER)
@@ -177,95 +313,6 @@ static ASTNode	*parse_identifier(Parser *parser)
 	return (node);
 }
 
-static ASTNode	*parse_statement(Parser *parser)
-{
-	if (check(parser, TOKEN_LBRACE))
-		return (parse_block(parser));
-
-	if (match(parser, TOKEN_INT))
-	{
-        parser_consume(parser, TOKEN_IDENTIFIER, "Expected variable name");
-        StringView var_name = parser->current.text;
-
-		ASTNode *init = NULL;
-		if (match(parser, TOKEN_EQUAL))
-			init = parse_expression(parser, PREC_NONE);
-
-        parser_consume(parser, TOKEN_SEMICOLON, "Expected ';' after variable declaration");
-
-        ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
-        *node = (ASTNode){
-            .type = AST_VAR_DECL,
-            .var_decl = {
-                .var_name = var_name,
-                .initializer = init
-            }
-        };
-        return (node);
-	}
-
-	if (match(parser, TOKEN_RETURN))
-	{
-		ASTNode *expr = NULL;
-		
-		if (!check(parser, TOKEN_SEMICOLON))
-			expr = parse_expression(parser, PREC_NONE);
-        parser_consume(parser, TOKEN_SEMICOLON, "Expected ';' after return");
-        
-        ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
-        *node = (ASTNode){
-            .type = AST_RETURN,
-            .return_stmt = { .expression = expr }
-        };
-        return (node);
-    }
-
-	if (match(parser, TOKEN_IF))
-	{
-		parser_consume(parser, TOKEN_LPAREN, "Expected '(' after 'if'");
-		ASTNode *condition = parse_expression(parser, PREC_NONE);
-		parser_consume(parser, TOKEN_RPAREN, "Expected ')' after condition");
-
-		ASTNode *then_branch = parse_statement(parser);
-		ASTNode *else_branch = NULL;
-
-		if (match(parser, TOKEN_ELSE))
-			else_branch = parse_statement(parser);
-
-		ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
-		*node = (ASTNode){
-			.type = AST_IF,
-			.if_stmt = {
-				.condition = condition,
-				.then_branch = then_branch,
-				.else_branch = else_branch
-			}
-		};
-		return (node);
-	}
-
-	if (match(parser, TOKEN_WHILE))
-	{
-		parser_consume(parser, TOKEN_LPAREN, "Expected '(' after 'while'");
-		ASTNode *condition = parse_expression(parser, PREC_NONE);
-		parser_consume(parser, TOKEN_RPAREN, "Expected ')' after condition");
-		ASTNode *body = parse_statement(parser);
-		ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
-		*node = (ASTNode){
-			.type = AST_WHILE,
-			.while_stmt = { 
-				.condition = condition,
-				.body = body
-			}
-		};
-		return (node);
-	}
-
-	ASTNode *expr = parse_expression(parser, PREC_NONE);
-    parser_consume(parser, TOKEN_SEMICOLON, "Expected ';' after expression");
-    return (expr);
-}
-
 ASTNode* parse_block(Parser *parser)
 {
     parser_consume(parser, TOKEN_LBRACE, "Expected '{'");
@@ -302,86 +349,6 @@ ASTNode* parse_block(Parser *parser)
         }
     };
     return (node);
-}
-
-static ASTNode	*parse_prefix(Parser *parser)
-{
-	switch (parser->current.type)
-	{
-		case TOKEN_IDENTIFIER:	return (parse_identifier(parser));
-		case TOKEN_NUMBER:		return (parse_number(parser));
-		case TOKEN_LPAREN:		return (parse_grouping(parser));
-		case TOKEN_MINUS:
-		case TOKEN_BANG:		return (parse_unary(parser));
-		default:
-			parser_error(parser, "Expect expression");
-			return (NULL);
-	}
-}
-
-static ASTNode	*parse_infix(Parser *parser, ASTNode	*left)
-{
-	TokenType operator_type = parser->current.type;
-	if (operator_type == TOKEN_LPAREN)
-		return (parse_call(parser, left));
-
-	if (operator_type == TOKEN_EQUAL)
-	{
-		ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
-		node->type = AST_ASSIGNMENT;
-		node->assignment.var_name = left->identifier.name;
-		node->assignment.value = parse_expression(parser, PREC_ASSIGNMENT);
-		return (node);
-	}
-
-	switch (operator_type)
-	{
-		case TOKEN_PLUS:
-		case TOKEN_MINUS:
-		case TOKEN_STAR:
-		case TOKEN_SLASH:
-		case TOKEN_EQUAL_EQUAL:
-		case TOKEN_BANG_EQUAL:
-		case TOKEN_LESS:
-		case TOKEN_LESS_EQUAL:
-		case TOKEN_GREATER:
-		case TOKEN_GREATER_EQUAL:
-			return (parse_binary(parser, left));
-		default:
-			return (left);
-	}
-}
-
-static ASTNode	*parse_expression(Parser *parser, Precedence precedence)
-{
-	if (parser->expr_depth >= MAX_EXPRESSION_DEPTH)
-	{
-		parser_error(parser, 
-				"Expression too deeply nested (max %d)",
-				MAX_EXPRESSION_DEPTH);
-		return (NULL);
-	}
-	parser->expr_depth++;
-	parser_advance(parser);
-
-	ASTNode *left = parse_prefix(parser);
-	if (!left)
-	{
-		parser->expr_depth--;
-		return (NULL);
-	}
-	while (precedence < get_token_precedence(parser->next.type))
-	{
-		parser_advance(parser);
-		left = parse_infix(parser, left);
-		if (!left)
-		{
-			parser->expr_depth--;
-			return (NULL);
-		}
-	}
-	parser->expr_depth--;
-	return (left);
 }
 
 static ASTNode	*parse_number(Parser *parser)
@@ -532,9 +499,3 @@ ASTNode	*parser_parse(Lexer *lexer, Arena *arena, ErrorContext *errors)
 	return (node);
 }
 
-static const char	*token_type_name(TokenType type)
-{
-	if (type < 0 || type >= sizeof(token_names) / sizeof(char *))
-		return ("UNKNOWN");
-	return (token_names[type]);
-}

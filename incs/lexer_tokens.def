@@ -1,7 +1,7 @@
 /*	Lexer Token X Macro Definitions
 *
 *	Usage:
-*		#define X_TOKEN(name, str, is_keyword)
+*       #define X_TOKEN(enum, str, is_keyword, prec, prefix_fn, infix_fn, stmt_fn)
 *		#include "lexer_tokens.def"
 *		#undef X_TOKEN
 *
@@ -9,43 +9,49 @@
 *	name		- enum name (TOKEN_EOF, TOKEN_INT etc.)
 *	str			- string representation for printing
 *	is_keyword	- for keyword checking in lexer_next
+*   prec		- precedence
+*	prefix_fn	- parser function for prefix
+*	infix_fn	- parser function for infix
+*	stmt_fn 	- parser function for statement
 */
 
-// Keywords
-X_TOKEN(TOKEN_INT,				"int",			true)
-X_TOKEN(TOKEN_IF,				"if",			true)
-X_TOKEN(TOKEN_ELSE,				"else",			true)
-X_TOKEN(TOKEN_WHILE,			"while",		true)
-X_TOKEN(TOKEN_RETURN,			"return",		true)
+// Keywords (Most have no parse logic in expressions)
+X_TOKEN(TOKEN_INT,			"int",			true,	PREC_NONE,	NULL,	NULL, parse_var_decl)
+X_TOKEN(TOKEN_IF,			"if",			true,	PREC_NONE,	NULL,	NULL, parse_if)
+X_TOKEN(TOKEN_ELSE,			"else",			true,	PREC_NONE,	NULL,	NULL, NULL)
+X_TOKEN(TOKEN_WHILE,		"while",		true,	PREC_NONE,	NULL,	NULL, parse_while)
+X_TOKEN(TOKEN_RETURN,		"return",		true,	PREC_NONE,	NULL,	NULL, parse_return)
 
 // Literals
-X_TOKEN(TOKEN_NUMBER,			"number",		false)
-X_TOKEN(TOKEN_IDENTIFIER,		"identifier",	false)
+X_TOKEN(TOKEN_NUMBER,		"number",		false,	PREC_NONE,	parse_number,		NULL, NULL)
+X_TOKEN(TOKEN_IDENTIFIER,	"identifier",	false,	PREC_NONE,	parse_identifier,	NULL, NULL)
 
 // Operators
-X_TOKEN(TOKEN_PLUS,				"+",			false)
-X_TOKEN(TOKEN_MINUS,			"-",			false)
-X_TOKEN(TOKEN_STAR,				"*",			false)
-X_TOKEN(TOKEN_SLASH,			"/",			false)
-X_TOKEN(TOKEN_BANG,				"!",			false)
+X_TOKEN(TOKEN_PLUS,			"+",        false,		PREC_TERM,		NULL,			parse_binary, NULL)
+X_TOKEN(TOKEN_MINUS,		"-",        false,		PREC_TERM,		parse_unary,	parse_binary, NULL)
+X_TOKEN(TOKEN_STAR,			"*",        false,		PREC_FACTOR,	NULL,			parse_binary, NULL)
+X_TOKEN(TOKEN_SLASH,		"/",        false,		PREC_FACTOR,	NULL,			parse_binary, NULL)
+X_TOKEN(TOKEN_BANG,			"!",        false,		PREC_NONE,		parse_unary,	NULL,		  NULL)
 
 // Comparisons
-X_TOKEN(TOKEN_EQUAL_EQUAL,		"==",			false)
-X_TOKEN(TOKEN_BANG_EQUAL,		"!=",			false)
-X_TOKEN(TOKEN_LESS,				"<",			false)
-X_TOKEN(TOKEN_LESS_EQUAL,		"<=",			false)
-X_TOKEN(TOKEN_GREATER,			">",			false)
-X_TOKEN(TOKEN_GREATER_EQUAL,	">=",			false)
+X_TOKEN(TOKEN_EQUAL_EQUAL,	"==",      false,		PREC_EQUALITY,		NULL,	parse_binary,	NULL)
+X_TOKEN(TOKEN_BANG_EQUAL,	"!=",       false,		PREC_EQUALITY,		NULL,	parse_binary,	NULL)
+X_TOKEN(TOKEN_LESS,			"<",        false,		PREC_COMPARISON,	NULL,	parse_binary,	NULL)
+X_TOKEN(TOKEN_LESS_EQUAL,	"<=",       false,		PREC_COMPARISON,	NULL,	parse_binary,	NULL)
+X_TOKEN(TOKEN_GREATER,		">",        false,		PREC_COMPARISON,	NULL,	parse_binary,	NULL)
+X_TOKEN(TOKEN_GREATER_EQUAL,">=",    false,			PREC_COMPARISON,	NULL,	parse_binary,	NULL)
 
-X_TOKEN(TOKEN_EQUAL,			"=",			false)
-X_TOKEN(TOKEN_SEMICOLON,		";",			false)
-X_TOKEN(TOKEN_LPAREN,			"(",			false)
-X_TOKEN(TOKEN_RPAREN,			")",			false)
-X_TOKEN(TOKEN_LBRACE,			"{",			false)
-X_TOKEN(TOKEN_RBRACE,			"}",			false)
+// Assignment
+X_TOKEN(TOKEN_EQUAL,		"=",        false,		PREC_ASSIGNMENT,	NULL,	parse_assignment, NULL)
 
-X_TOKEN(TOKEN_COMMA,			",",			false)
+// Grouping & Calls
+X_TOKEN(TOKEN_LPAREN,		"(",        false,		PREC_CALL,	parse_grouping,	parse_call, parse_block)
+X_TOKEN(TOKEN_RPAREN,		")",        false,		PREC_NONE,	NULL,			NULL,		NULL)
 
-// Special
-X_TOKEN(TOKEN_EOF,				"EOF",		false)
-X_TOKEN(TOKEN_ERROR,			"ERROR",		false)
+// Syntax
+X_TOKEN(TOKEN_SEMICOLON,	";",        false,		PREC_NONE,			NULL,           NULL,	NULL)
+X_TOKEN(TOKEN_LBRACE,		"{",        false,		PREC_NONE,			NULL,			NULL,	NULL)
+X_TOKEN(TOKEN_RBRACE,		"}",        false,		PREC_NONE,			NULL,			NULL,	NULL)
+X_TOKEN(TOKEN_COMMA,		",",        false,		PREC_NONE,			NULL,			NULL,	NULL)
+X_TOKEN(TOKEN_EOF,			"EOF",      false,		PREC_NONE,			NULL,			NULL,	NULL)
+X_TOKEN(TOKEN_ERROR,		"ERROR",    false,		PREC_NONE,			NULL,			NULL,	NULL)
