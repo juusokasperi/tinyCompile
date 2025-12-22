@@ -1,51 +1,51 @@
 /*	Lexer Token X Macro Definitions
 *
 *	Usage:
-*		#define X_TOKEN(name, str)
+*		#define X_TOKEN(name, str, is_keyword)
 *		#include "lexer_tokens.def"
 *		#undef X_TOKEN
 *
 *	Parameters:
-*	name	- enum name (TOKEN_EOF, TOKEN_INT etc.)
-*	str		- string representation for printing
-*
+*	name		- enum name (TOKEN_EOF, TOKEN_INT etc.)
+*	str			- string representation for printing
+*	is_keyword	- for keyword checking in lexer_next
 */
 
 // Keywords
-X_TOKEN(TOKEN_INT, "'int'")
-X_TOKEN(TOKEN_IF, "'if'")
-X_TOKEN(TOKEN_ELSE, "'else'")
-X_TOKEN(TOKEN_WHILE, "'while'")
-X_TOKEN(TOKEN_RETURN, "'return'")
+X_TOKEN(TOKEN_INT,				"int",			true)
+X_TOKEN(TOKEN_IF,				"if",			true)
+X_TOKEN(TOKEN_ELSE,				"else",			true)
+X_TOKEN(TOKEN_WHILE,			"while",		true)
+X_TOKEN(TOKEN_RETURN,			"return",		true)
 
 // Literals
-X_TOKEN(TOKEN_NUMBER, "'number'")
-X_TOKEN(TOKEN_IDENTIFIER, "'identifier'")
+X_TOKEN(TOKEN_NUMBER,			"number",		false)
+X_TOKEN(TOKEN_IDENTIFIER,		"identifier",	false)
 
 // Operators
-X_TOKEN(TOKEN_PLUS, "'+'")
-X_TOKEN(TOKEN_MINUS, "'-'")
-X_TOKEN(TOKEN_STAR, "'*'")
-X_TOKEN(TOKEN_SLASH, "'/'")
-X_TOKEN(TOKEN_BANG, "'!'")
+X_TOKEN(TOKEN_PLUS,				"+",			false)
+X_TOKEN(TOKEN_MINUS,			"-",			false)
+X_TOKEN(TOKEN_STAR,				"*",			false)
+X_TOKEN(TOKEN_SLASH,			"/",			false)
+X_TOKEN(TOKEN_BANG,				"!",			false)
 
 // Comparisons
-X_TOKEN(TOKEN_EQUAL_EQUAL, "'=='")
-X_TOKEN(TOKEN_BANG_EQUAL, "'!='")
-X_TOKEN(TOKEN_LESS, "'<'")
-X_TOKEN(TOKEN_LESS_EQUAL, "'<='")
-X_TOKEN(TOKEN_GREATER, "'>'")
-X_TOKEN(TOKEN_GREATER_EQUAL, "'>='")
+X_TOKEN(TOKEN_EQUAL_EQUAL,		"==",			false)
+X_TOKEN(TOKEN_BANG_EQUAL,		"!=",			false)
+X_TOKEN(TOKEN_LESS,				"<",			false)
+X_TOKEN(TOKEN_LESS_EQUAL,		"<=",			false)
+X_TOKEN(TOKEN_GREATER,			">",			false)
+X_TOKEN(TOKEN_GREATER_EQUAL,	">=",			false)
 
-X_TOKEN(TOKEN_EQUAL, "'='")
-X_TOKEN(TOKEN_SEMICOLON, "';'")
-X_TOKEN(TOKEN_LPAREN, "'('")
-X_TOKEN(TOKEN_RPAREN, "')'")
-X_TOKEN(TOKEN_LBRACE, "'{'")
-X_TOKEN(TOKEN_RBRACE, "'}'")
+X_TOKEN(TOKEN_EQUAL,			"=",			false)
+X_TOKEN(TOKEN_SEMICOLON,		";",			false)
+X_TOKEN(TOKEN_LPAREN,			"(",			false)
+X_TOKEN(TOKEN_RPAREN,			")",			false)
+X_TOKEN(TOKEN_LBRACE,			"{",			false)
+X_TOKEN(TOKEN_RBRACE,			"}",			false)
 
-X_TOKEN(TOKEN_COMMA, "','")
+X_TOKEN(TOKEN_COMMA,			",",			false)
 
 // Special
-X_TOKEN(TOKEN_EOF, "'EOF'")
-X_TOKEN(TOKEN_ERROR, "'ERROR'")
+X_TOKEN(TOKEN_EOF,				"EOF",		false)
+X_TOKEN(TOKEN_ERROR,			"ERROR",		false)

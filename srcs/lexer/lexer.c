@@ -1,5 +1,7 @@
 #include "lexer.h"
 
+static TokenType check_keyword(StringView text);
+
 /**
  * @brief Lexer works on a as-requested basis,
  * returns the next token for the parser
@@ -30,19 +32,10 @@ Token lexer_next(Lexer *l)
 		while (l->curr < l->end && (isalnum(*l->curr) || *l->curr == '_'))
 			lexer_advance(l);
 
-		StringView text = {.start = start, .len = l->curr - start};
-		if (sv_eq_cstr(text, "int"))
-			return (lexer_make_token(l, TOKEN_INT, text));
-		if (sv_eq_cstr(text, "return"))
-			return (lexer_make_token(l, TOKEN_RETURN, text));
-		if (sv_eq_cstr(text, "if"))
-            return (lexer_make_token(l, TOKEN_IF, text));
-        if (sv_eq_cstr(text, "else"))
-            return (lexer_make_token(l, TOKEN_ELSE, text));
-        if (sv_eq_cstr(text, "while"))
-            return (lexer_make_token(l, TOKEN_WHILE, text));
+		StringView	text = {.start = start, .len = l->curr - start};
+		TokenType	type = check_keyword(text);
 
-		return (lexer_make_token(l, TOKEN_IDENTIFIER, text));
+		return (lexer_make_token(l, type, text));
 	}
 
 	lexer_advance(l);
@@ -90,4 +83,13 @@ Token lexer_next(Lexer *l)
 			return (lexer_make_token_no_sv(l, TOKEN_LESS));
 		default:  return (lexer_make_token_no_sv(l, TOKEN_ERROR));
 	}
+}
+
+static TokenType check_keyword(StringView text)
+{
+	#define X_TOKEN(name, str, is_keyword) \
+		if (is_keyword && sv_eq_cstr(text, str)) return (name);
+	#include "lexer_tokens.def"
+	#undef X_TOKEN
+	return (TOKEN_IDENTIFIER);
 }

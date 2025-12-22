@@ -18,7 +18,7 @@ static void			parser_advance(Parser *parser);
 static const char	*token_type_name(TokenType type);
 
 static const char *token_names[] = {
-	#define X_TOKEN(name, str) str,
+	#define X_TOKEN(name, str, is_keyword) str,
 	#include "lexer_tokens.def"
 	#undef X_TOKEN
 };

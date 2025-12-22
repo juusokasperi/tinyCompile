@@ -7,7 +7,7 @@
 # include "string_view.h"
 
 typedef enum {
-	#define X_TOKEN(name, str) name,
+	#define X_TOKEN(name, str, is_keyword) name,
 	#include "lexer_tokens.def"
 	#undef X_TOKEN
 }	TokenType;
