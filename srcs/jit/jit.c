@@ -91,9 +91,10 @@ size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_count)
 	}
 	return (size);
 }
-void jit_ctx_init(JITContext *ctx, Arena *a)
+void jit_ctx_init(JITContext *ctx, Arena *a, Arena *exec_arena)
 {
 	ctx->arena = a;
+	ctx->exec_arena = exec_arena;
 	ctx->registry.capacity = MAX_FUNCTION_COUNT;
 	ctx->registry.count = 0;
 	ctx->registry.functions = arena_alloc(a, sizeof(CompiledFunction) * ctx->registry.capacity);
@@ -141,7 +142,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	assert(instruction_count == ir_func->total_count && "IR instruction count mismatch");
 	
 	// === Allocate ===
-	result.code = arena_alloc_aligned(ctx->arena, predicted_size, 16);
+	result.code = arena_alloc_aligned(ctx->exec_arena, predicted_size, 16);
     if (!result.code)
 	{
 		fprintf(stderr, BOLD_RED "  > failed to allocate %zu bytes for JIT code\n" RESET,
@@ -203,9 +204,9 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 		return ((JITResult){0});
 	}
 	ctx->registry.functions[ctx->registry.count++] = (CompiledFunction){
-            .name = func_name,
-            .code_addr = result.code,
-            .code_size = result.size
+			.name = func_name,
+			.code_addr = result.code,
+			.code_size = result.size
     };
 	return (result);
 }
@@ -244,7 +245,7 @@ bool jit_link_all(JITContext *ctx, ErrorContext *errors)
 }
 
 bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx, 
-					Arena *jit_arena, ErrorContext *errors)
+					ErrorContext *errors)
 {
 	for (size_t i = 0; i < comp_ctx->count; ++i)
 	{
@@ -259,7 +260,7 @@ bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
                 continue;
 			printf("  :: compiling symbol '%.*s'\n", (int)func->function.name.len, func->function.name.start);
 
-			IRFunction *ir = ir_gen(jit_arena, func);
+			IRFunction *ir = ir_gen(jit_ctx->arena, func);
 			if (!ir)
 			{
 				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);

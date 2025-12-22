@@ -129,6 +129,7 @@ typedef struct {
 
 typedef struct {
 	Arena 				*arena;
+	Arena				*exec_arena;
 	FunctionRegistry	registry;
 	CallSiteList		call_sites;
 	PendingCall			pending_call;
@@ -139,8 +140,8 @@ typedef struct {
 } JITContext;
 
 bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx, 
-					Arena *jit_arena, ErrorContext *errors);
-void		jit_ctx_init(JITContext *ctx, Arena *a);
+					ErrorContext *errors);
+void		jit_ctx_init(JITContext *ctx, Arena *a, Arena *exec_arena);
 JITResult	jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *func);
 bool		jit_link_all(JITContext *ctx, ErrorContext *errors);
 

@@ -17,6 +17,7 @@ int main(int argc, char **argv)
 
 	Arena ast_arena = arena_init(PROT_READ | PROT_WRITE);
 	Arena jit_arena = arena_init(PROT_READ | PROT_WRITE);
+	Arena jit_exec_arena = arena_init(PROT_READ | PROT_WRITE);
 
 	ErrorContext	errors;
 	error_context_init(&errors, &ast_arena);
@@ -58,8 +59,8 @@ int main(int argc, char **argv)
 
 	print_phase(4, "JIT");
 	JITContext jit_ctx;
-	jit_ctx_init(&jit_ctx, &jit_arena);
-	if (!jit_compile_pass(&jit_ctx, &ctx, &jit_arena, &errors))
+	jit_ctx_init(&jit_ctx, &jit_arena, &jit_exec_arena);
+	if (!jit_compile_pass(&jit_ctx, &ctx, &errors))
 		goto cleanup;
 
 	if (!jit_link_all(&jit_ctx, &errors))
@@ -68,7 +69,7 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	if (!arena_set_prot(&jit_arena, PROT_READ | PROT_EXEC))
+	if (!arena_set_prot(&jit_exec_arena, PROT_READ | PROT_EXEC))
 	{
 		perror(BOLD_RED "  > failed to set executable permissions" RESET);
 		goto cleanup;
@@ -102,6 +103,7 @@ cleanup:
 	if (error_has_errors(&errors) || error_has_fatal(&errors))
 		error_print_all(&errors);
 	resource_cleanup_all(&resources);
+	arena_free(&jit_exec_arena);
 	arena_free(&ast_arena);
 	arena_free(&jit_arena);
 
