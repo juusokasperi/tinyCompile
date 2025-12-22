@@ -17,6 +17,12 @@ static ASTNode		*parse_call(Parser *parser, ASTNode *callee);
 static void			parser_advance(Parser *parser);
 static const char	*token_type_name(TokenType type);
 
+static const char *token_names[] = {
+	#define X_TOKEN(name, str) str,
+	#include "lexer_tokens.def"
+	#undef X_TOKEN
+};
+
 static void parser_error(Parser *parser, const char *fmt, ...)
 {
 	if (parser->panic_mode)
@@ -527,35 +533,7 @@ ASTNode	*parser_parse(Lexer *lexer, Arena *arena, ErrorContext *errors)
 
 static const char	*token_type_name(TokenType type)
 {
-	switch (type)
-	{
-		case TOKEN_EOF:				return "end of file";
-		case TOKEN_INT:				return "'int'";
-		case TOKEN_IF:				return "'if'";
-		case TOKEN_ELSE:			return "'else'";
-		case TOKEN_WHILE:			return "'while'";
-		case TOKEN_RETURN:			return "'return'";
-		case TOKEN_NUMBER:			return "number";
-		case TOKEN_IDENTIFIER:		return "identifier";
-		case TOKEN_PLUS:			return "'+'";
-		case TOKEN_MINUS:			return "'-'";
-		case TOKEN_STAR:			return "'*'";
-		case TOKEN_SLASH:			return "'/'";
-		case TOKEN_BANG:			return "'!'";
-		case TOKEN_EQUAL_EQUAL:		return "'=='";
-		case TOKEN_BANG_EQUAL:		return "'!='";
-		case TOKEN_LESS:			return "'<'";
-		case TOKEN_LESS_EQUAL:		return "'<='";
-		case TOKEN_GREATER:			return "'>'";
-		case TOKEN_GREATER_EQUAL:	return "'>='";
-		case TOKEN_EQUAL:			return "'='";
-		case TOKEN_SEMICOLON:		return "';'";
-		case TOKEN_LPAREN:			return "'('";
-		case TOKEN_RPAREN:			return "')'";
-		case TOKEN_LBRACE:			return "'{'";
-		case TOKEN_RBRACE:			return "'}'";
-		case TOKEN_COMMA:			return "','";
-		case TOKEN_ERROR:			return "invalid token";
-		default:					return "unknown token";
-	}
+	if (type < 0 || type >= sizeof(token_names) / sizeof(char *))
+		return ("UNKNOWN");
+	return (token_names[type]);
 }

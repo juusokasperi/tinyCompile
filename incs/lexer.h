@@ -7,43 +7,10 @@
 # include "string_view.h"
 
 typedef enum {
-	TOKEN_EOF,
-
-	TOKEN_INT,
-
-	TOKEN_IF,
-	TOKEN_ELSE,
-	TOKEN_WHILE,
-	TOKEN_RETURN,
-
-	TOKEN_NUMBER,
-	TOKEN_IDENTIFIER,
-
-	TOKEN_PLUS,
-	TOKEN_MINUS,
-	TOKEN_STAR,
-	TOKEN_SLASH,
-
-	TOKEN_BANG,
-
-	TOKEN_EQUAL_EQUAL,
-	TOKEN_BANG_EQUAL,
-	TOKEN_LESS,
-	TOKEN_LESS_EQUAL,
-	TOKEN_GREATER,
-	TOKEN_GREATER_EQUAL,
-
-	TOKEN_EQUAL,
-	TOKEN_SEMICOLON,
-	TOKEN_LPAREN,
-	TOKEN_RPAREN,
-	TOKEN_LBRACE,
-	TOKEN_RBRACE,
-
-	TOKEN_COMMA,
-
-	TOKEN_ERROR,
-} TokenType;
+	#define X_TOKEN(name, str) name,
+	#include "lexer_tokens.def"
+	#undef X_TOKEN
+}	TokenType;
 
 typedef struct {
 	TokenType type;

@@ -1,0 +1,51 @@
+/*	Lexer Token X Macro Definitions
+*
+*	Usage:
+*		#define X_TOKEN(name, str)
+*		#include "lexer_tokens.def"
+*		#undef X_TOKEN
+*
+*	Parameters:
+*	name	- enum name (TOKEN_EOF, TOKEN_INT etc.)
+*	str		- string representation for printing
+*
+*/
+
+// Keywords
+X_TOKEN(TOKEN_INT, "'int'")
+X_TOKEN(TOKEN_IF, "'if'")
+X_TOKEN(TOKEN_ELSE, "'else'")
+X_TOKEN(TOKEN_WHILE, "'while'")
+X_TOKEN(TOKEN_RETURN, "'return'")
+
+// Literals
+X_TOKEN(TOKEN_NUMBER, "'number'")
+X_TOKEN(TOKEN_IDENTIFIER, "'identifier'")
+
+// Operators
+X_TOKEN(TOKEN_PLUS, "'+'")
+X_TOKEN(TOKEN_MINUS, "'-'")
+X_TOKEN(TOKEN_STAR, "'*'")
+X_TOKEN(TOKEN_SLASH, "'/'")
+X_TOKEN(TOKEN_BANG, "'!'")
+
+// Comparisons
+X_TOKEN(TOKEN_EQUAL_EQUAL, "'=='")
+X_TOKEN(TOKEN_BANG_EQUAL, "'!='")
+X_TOKEN(TOKEN_LESS, "'<'")
+X_TOKEN(TOKEN_LESS_EQUAL, "'<='")
+X_TOKEN(TOKEN_GREATER, "'>'")
+X_TOKEN(TOKEN_GREATER_EQUAL, "'>='")
+
+X_TOKEN(TOKEN_EQUAL, "'='")
+X_TOKEN(TOKEN_SEMICOLON, "';'")
+X_TOKEN(TOKEN_LPAREN, "'('")
+X_TOKEN(TOKEN_RPAREN, "')'")
+X_TOKEN(TOKEN_LBRACE, "'{'")
+X_TOKEN(TOKEN_RBRACE, "'}'")
+
+X_TOKEN(TOKEN_COMMA, "','")
+
+// Special
+X_TOKEN(TOKEN_EOF, "'EOF'")
+X_TOKEN(TOKEN_ERROR, "'ERROR'")
