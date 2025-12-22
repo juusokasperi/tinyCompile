@@ -311,7 +311,8 @@ static ASTNode	*parse_prefix(Parser *parser)
 		case TOKEN_IDENTIFIER:	return (parse_identifier(parser));
 		case TOKEN_NUMBER:		return (parse_number(parser));
 		case TOKEN_LPAREN:		return (parse_grouping(parser));
-		case TOKEN_MINUS:		return (parse_unary(parser));
+		case TOKEN_MINUS:
+		case TOKEN_BANG:		return (parse_unary(parser));
 		default:
 			parser_error(parser, "Expect expression");
 			return (NULL);

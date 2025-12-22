@@ -61,9 +61,7 @@ static inline size_t emit_jump(uint8_t *buf, size_t label_id, JITContext *ctx, u
 		return (size);
 	}
 
-	size_t	written = 0;
-	emit_u32(&curr, &written, 0);
-	return (size + 4);
+	return (size);
 }
 
 static inline void	emit_jz_jnz(uint8_t **buf, size_t *size, IRInstruction *inst)
