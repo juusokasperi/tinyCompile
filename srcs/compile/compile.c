@@ -8,6 +8,7 @@
 #include "validation.h"
 #include "parser.h"
 #include <errno.h>
+#include <fcntl.h>
 
 bool compile_ctx_init(CompilationContext *ctx, Arena *arena, 
 		ErrorContext *errors, size_t file_count)
@@ -35,12 +36,12 @@ bool compile_ctx_init(CompilationContext *ctx, Arena *arena,
 				"Failed to allocate compilation units");
 		return (false);
 	}
-	semantic_global_init(&ctx->global);
+	ctx->global.function_count = 0;
 	return (true);
 }
 
 bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
-		ResourceTracker *resources, int *out_fd, void **out_mapped, size_t *out_size)
+		ResourceTracker *resources)
 {
 	if (ctx->count >= ctx->capacity)
 	{
@@ -51,7 +52,7 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
 	if (!validate_source_file(filepath, &validation, ctx->errors))
 		return (false);
 
-	int fd = safe_open(validation.canonical_path);
+	int fd = open(validation.canonical_path, O_RDONLY);
 	if (fd == -1)
 	{
 		error_fatal(ctx->errors, filepath, 0, 0,
@@ -62,7 +63,8 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
 	FileMap file = map_input(fd);
 	if (!file.data)
 	{
-		error_fatal(ctx->errors, filepath, 0, 0, "Failed to map file into memory");
+		error_fatal(ctx->errors, filepath, 0, 0,
+				"Failed to map file into memory: %s", strerror(errno));
 		return (false);
 	}
 	file.name = filepath;
@@ -73,10 +75,6 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
 		.parsed_ok = false
 	};
 	ctx->count++;
-
-	if (out_fd) *out_fd = fd;
-	if (out_mapped) *out_mapped = (void *)file.data;
-	if (out_size) *out_size = file.length;
 
 	printf(BOLD_GREEN "> LOAD SOURCE: " RESET WHITE "%s (%zu bytes)\n" RESET, filepath, file.length);
 	return (true);
@@ -96,8 +94,7 @@ bool compile_parse_all(CompilationContext *ctx)
 		unit->parsed_ok = (unit->ast != NULL);
 		if (!unit->parsed_ok)
 		{
-			error_add(ctx->errors, ERROR_PARSER, ERROR_LEVEL_ERROR,
-					unit->file.name, 0, 0, "Parse failed");
+			error_parser(ctx->errors, unit->file.name, 0, 0, "Parse failed");
 			all_ok = false;
 		}
 	}

@@ -35,10 +35,7 @@ int main(int argc, char **argv)
 
 	for (int i = 1; i < argc; ++i)
 	{
-		int		fd;
-		void	*mapped;
-		size_t	size;
-		if (!compile_ctx_add_file(&ctx, argv[i], &resources, &fd, &mapped, &size))
+		if (!compile_ctx_add_file(&ctx, argv[i], &resources))
 		{
 			fprintf(stderr, BOLD_RED "\n  > initialization failed\n" RESET);
 			goto cleanup;
@@ -58,9 +55,6 @@ int main(int argc, char **argv)
 		fprintf(stderr, BOLD_RED "\n  > semantic analysis failed\n" RESET);
 		goto cleanup;
 	}
-
-	if (error_has_errors(&errors))
-		goto cleanup;
 
 	print_phase(4, "JIT");
 	JITContext jit_ctx;

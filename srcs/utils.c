@@ -8,25 +8,12 @@
 #include <unistd.h>
 #include "ast.h"
 
-int safe_open(char *file)
-{
-	int fd = open(file, O_RDONLY);
-	if (fd == -1)
-	{
-		perror(BOLD_RED "  > error opening file" RESET);
-		printf("\n");
-	}
-	return (fd);
-}
-
 FileMap map_input(int fd)
 {
 	FileMap res = {0};
 	struct stat	stat_buf;
 	if (fstat(fd, &stat_buf) == -1)
 	{
-		perror(BOLD_RED "  > fstat failed" RESET);
-		printf("\n");
 		close(fd);
 		return (res);
 	}
@@ -44,11 +31,7 @@ FileMap map_input(int fd)
 
 	close(fd);
 	if (map == MAP_FAILED)
-	{
-		perror(BOLD_RED "  > mmap failed" RESET);
-		printf("\n");
 		return (res);
-	}
 
 	res.data = map;
 	res.length = stat_buf.st_size;

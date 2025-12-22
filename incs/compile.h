@@ -28,8 +28,7 @@ typedef struct {
 bool	compile_ctx_init(CompilationContext *ctx, Arena *arena, 
 					ErrorContext *errors, size_t file_count);
 bool	compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
-					ResourceTracker *resources, int *out_fd, 
-					void **out_mapped, size_t *out_size);
+					ResourceTracker *resources);
 bool	compile_parse_all(CompilationContext *ctx);
 bool	compile_analyze_all(CompilationContext *ctx);
 void	compile_print_errors(CompilationContext *ctx);

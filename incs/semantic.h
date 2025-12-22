@@ -55,7 +55,6 @@ typedef struct {
 
 bool	semantic_analyze(Arena *a, CompilationUnit *unit, ErrorContext *errors, GlobalScope *global);
 
-void	semantic_global_init(GlobalScope *global);
 bool	semantic_global_declare_function(GlobalScope *global, ErrorContext *errors, 
 			ASTNode *func_node, const char *filename);
 

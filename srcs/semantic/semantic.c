@@ -238,11 +238,6 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 	}
 }
 
-void semantic_global_init(GlobalScope *global)
-{
-	global->function_count = 0;
-}
-
 bool	semantic_global_declare_function(GlobalScope *global, ErrorContext *errors, 
 			ASTNode *func_node, const char *filename)
 {
