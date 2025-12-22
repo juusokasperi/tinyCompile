@@ -1,7 +1,7 @@
 SRCS_LEXER = lexer.c helpers.c
 DIR_LEXER = lexer/
 
-SRCS_PARSER = parser.c
+SRCS_PARSER = parser.c parser_expr.c parser_stmt.c parser_utils.c
 DIR_PARSER = parser/
 
 SRCS_SEMANTIC = semantic.c

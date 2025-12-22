@@ -33,18 +33,6 @@ typedef struct {
 	size_t			expr_depth;
 } Parser;
 
-typedef ASTNode*	(*ParseStmtFn)(Parser *p);
-typedef ASTNode*	(*ParsePrefixFn)(Parser *p);
-typedef ASTNode*	(*ParseInfixFn)(Parser *p, ASTNode *left);
-
-typedef struct {
-	const char		*name;
-	Precedence		prec;
-	ParsePrefixFn	prefix;
-	ParseInfixFn	infix;
-	ParseStmtFn		stmt;
-} ParseRule;
-
 ASTNode	*parser_parse(Lexer *l, Arena *a, ErrorContext *e);
 
 #endif
