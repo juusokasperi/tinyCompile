@@ -24,6 +24,12 @@ ASTNode	*parser_parse(Lexer *lexer, Arena *arena, ErrorContext *errors)
 
 	while (!check(&parser, TOKEN_EOF))
 	{
+		if (count >= MAX_FUNCTION_COUNT)
+		{
+			parser_error(&parser, "Too many global declarations (max %d)",
+					MAX_FUNCTION_COUNT);
+			return (NULL);
+		}
 		if (check(&parser, TOKEN_INT))
 			declarations[count++] = parse_function(&parser);
 		else
