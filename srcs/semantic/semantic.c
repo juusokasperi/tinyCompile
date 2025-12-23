@@ -264,7 +264,7 @@ bool	semantic_global_declare_function(GlobalScope *global, ErrorContext *errors,
 		if (existing->param_count != param_count)
 		{
 			error_semantic(errors, filename, line, 0,
-					"conflicting types for function '%.*s'"
+					"conflicting types for function '%.*s' "
 					"(previous declaration at %s:%d had %zu parameters)",
 					(int)name.len, name.start, existing->filename,
 					existing->line, existing->param_count);
