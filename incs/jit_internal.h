@@ -7,6 +7,7 @@
 extern const X86Reg arg_registers[6];
 
 /* --- Shared Helpers --- */
+Location get_location(JITContext *ctx, size_t vreg);
 int32_t get_slot(size_t vreg);
 
 /* --- Encoder Prototypes (Auto-Generated) --- */

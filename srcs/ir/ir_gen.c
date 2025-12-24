@@ -103,7 +103,12 @@ static size_t gen_binary_op(Arena *a, IRFunction *f, ASTNode *node, SymbolTable 
 		case AST_GREATER_EQUAL:	op = IR_GE; break;
 		default:				op = IR_ADD; break;
 	}
-	IRInstruction inst = { .opcode = op, .dest = dest, .src_1 = left, .src_2 = right };
+	IRInstruction inst = {
+		.opcode = op,
+		.type = TYPE_INT64,		// TODO Remove default
+		.dest = dest,
+		.src_1 = left,
+		.src_2 = right };
 	emit(a, f, inst);
 	return (dest);
 }

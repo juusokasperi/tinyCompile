@@ -49,6 +49,7 @@ typedef enum {
 
 typedef struct {
 	IROpcode	opcode;
+	DataType	type;
 	size_t		dest;	// Virtual register ID 
 	size_t		src_1;
 	size_t		src_2;

@@ -1,6 +1,9 @@
+#include "ir.h"
 #include "jit.h"
+#include "jit_internal.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <unistd.h>
 
 static uint8_t get_rex(X86Reg dst, X86Reg src)
 {
@@ -144,3 +147,13 @@ void emit_movzx(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
 	emit_u8(buf, cnt, OP_MOVZX);
 	emit_u8(buf, cnt, MOD_REG | ((dst & 7) << 3) | (src & 7));
 }
+
+void	emit_test(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
+{
+	uint8_t rex = get_rex(dst, src);
+
+	emit_u8(buf, cnt, rex);
+	emit_u8(buf, cnt, ALU_TEST);
+	emit_u8(buf, cnt, MOD_REG | ((src & 7) << 3) | (dst & 7));
+}
+

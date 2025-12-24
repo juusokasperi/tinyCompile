@@ -28,6 +28,35 @@ int32_t get_slot(size_t vreg)
 	return -((int32_t)(vreg + 1) * 8);
 }
 
+/* ===================== */
+/* LINEAR SCAN ALLOCATOR */
+/* ===================== */
+
+Location get_location(JITContext *ctx, size_t vreg)
+{
+	if (ctx->vreg_map[vreg].type != 0)
+		return (ctx->vreg_map[vreg]);
+
+	for (int i = 0; i < 16; ++i)
+	{
+		if (i == REG_RSP || i == REG_RBP
+			|| i == REG_RAX || i == REG_RBX)
+			continue;
+		if (!ctx->phys_regs[i])
+		{
+			ctx->phys_regs[i] = true;
+			ctx->vreg_map[vreg].type = LOC_REG;
+			ctx->vreg_map[vreg].reg = (X86Reg)i;
+			return (ctx->vreg_map[vreg]);
+		}
+	}
+
+	// If no space on registers, allocate to stack
+	ctx->vreg_map[vreg].type = LOC_STACK;
+	ctx->vreg_map[vreg].offset = -((int32_t)(vreg + 1) * 8);
+	return (ctx->vreg_map[vreg]);
+}
+
 /* ============== */
 /* DISPATCH TABLE */
 /* ============== */
@@ -99,10 +128,23 @@ void jit_ctx_init(JITContext *ctx, Arena *data_arena, Arena *exec_arena)
 	ctx->registry.count = 0;
 	ctx->registry.functions = arena_alloc(data_arena, sizeof(CompiledFunction) * ctx->registry.capacity);
 
+	ctx->vreg_map = arena_alloc(data_arena, sizeof(Location) * MAX_VREGS_PER_FUNCTION);
+
 	ctx->call_sites.capacity = MAX_CALL_SITES;
 	ctx->call_sites.count = 0;
 	ctx->call_sites.sites = arena_alloc(data_arena, sizeof(CallSite) * ctx->call_sites.capacity);
 	memset(&ctx->pending_call, 0, sizeof(PendingCall));
+}
+
+
+static inline void reset_state(JITContext *ctx)
+{
+	ctx->pending_call.count = 0;
+	ctx->patches = NULL;
+	memset(ctx->label_offset, 0, sizeof(ctx->label_offset));
+	memset(ctx->label_defined, 0, sizeof(ctx->label_defined));
+	memset(ctx->vreg_map, 0, sizeof(Location) * MAX_VREGS_PER_FUNCTION);
+	memset(ctx->phys_regs, 0, sizeof(ctx->phys_regs));
 }
 
 JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *func)
@@ -111,10 +153,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	size_t param_count = func->function.param_count;
 
 	JITResult result = {0};
-	ctx->pending_call.count = 0;
-	memset(ctx->label_offset, 0, sizeof(ctx->label_offset));
-	memset(ctx->label_defined, 0, sizeof(ctx->label_defined));
-	ctx->patches = NULL;
+	reset_state(ctx);
 
 	if (ir_func->label_count >= MAX_LABELS)
 	{
@@ -150,6 +189,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	}
 
 	// === PASS 2: Emit ===
+	reset_state(ctx);
 	uint8_t *write_ptr = result.code;
 	size_t prologue_size = encode_prologue(write_ptr, stack_bytes, param_count);
 	write_ptr += prologue_size;

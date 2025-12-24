@@ -47,6 +47,7 @@ typedef enum {
 	ALU_CMP = 0x39,
 	ALU_IMM = 0x81,		// 32-bit immediate
 	ALU_IMM8 = 0x83,	// Add/Cmp/Sub r/m, imm8
+	ALU_TEST = 0x85,
 
 	MOV_RM_R = 0x89,	// Store: Move register to r/m
 	MOV_R_RM = 0x8B,	// Load: Move r/m to register
@@ -83,6 +84,22 @@ typedef enum {
 	EXT_IDIV = 7,
 	EXT_CMP = 7,
 } X86Extension;
+
+typedef enum {
+	LOC_REG,
+	LOC_STACK,
+	LOC_CONST
+} LocationType;
+
+typedef struct {
+	LocationType type;
+	union 
+	{
+		X86Reg	reg;
+		int32_t	offset;
+		int64_t	imm;
+	};
+} Location;
 
 typedef struct {
 	uint8_t *code;
@@ -137,6 +154,9 @@ typedef struct {
 	uint8_t				*label_offset[MAX_LABELS];
 	bool				label_defined[MAX_LABELS];
 	Patch				*patches;
+
+	Location			*vreg_map;
+	bool				phys_regs[16];
 } JITContext;
 
 bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx, 
@@ -157,5 +177,6 @@ void        emit_mov_reg_reg(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
 void		emit_cmp(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void		emit_movzx(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void		emit_setcc(uint8_t **buf, size_t *cnt, X86Condition cc, X86Reg dst);
+void		emit_test(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 
 #endif
