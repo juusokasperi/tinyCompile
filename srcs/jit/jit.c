@@ -14,20 +14,6 @@ const X86Reg arg_registers[6] = {
 	REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9,
 };
 
-// Shared helper
-int32_t get_slot(size_t vreg)
-{
-	if (vreg >= MAX_VREGS_PER_FUNCTION)
-	{
-		fprintf(stderr, BOLD_RED
-				"  > JIT INTERNAL ERROR\n"
-				"    vreg %zu exceeds limit %d\n" RESET,
-				vreg, MAX_VREGS_PER_FUNCTION);
-		abort();
-	}
-	return -((int32_t)(vreg + 1) * 8);
-}
-
 /* ===================== */
 /* LINEAR SCAN ALLOCATOR */
 /* ===================== */
@@ -79,7 +65,7 @@ static size_t	encode_inst(uint8_t *buf, IRInstruction *inst, JITContext *ctx)
 /* MAIN JIT LOGIC */
 /* ============== */
 
-size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_count)
+static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_count, JITContext *ctx)
 {
 	uint8_t	*curr = buf;
 	size_t	size = 0;
@@ -97,29 +83,37 @@ size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_count)
         emit_u32(&curr, &size, (uint32_t)stack_size);
 	}
 
-	// 2. Handle register arguments
-	for (size_t i = 0; i < param_count && i < 6; i++)
+	// 2. Handle arguments
+	for (size_t i = 0; i < param_count; ++i)
 	{
-        int32_t slot = get_slot(i);
-        emit_store_local(&curr, &size, arg_registers[i], slot);
+		Location loc = get_location(ctx, i);
+		if (i < 6)
+		{
+			X86Reg src_reg = arg_registers[i];
+			if (loc.type == LOC_REG)
+			{
+				if (loc.reg != src_reg)
+					emit_mov_reg_reg(&curr, &size, loc.reg, src_reg);
+			}
+			else
+				emit_store_local(&curr, &size, src_reg, loc.offset);
+		}
+		else
+		{
+			int32_t src_offset = 16 + (i - 6) * 8;
+			if (loc.type == LOC_REG)
+				emit_load_param(&curr, &size, loc.reg, src_offset);
+			else
+			{
+				emit_load_param(&curr, &size, REG_RAX, src_offset);
+				emit_store_local(&curr, &size, REG_RAX, loc.offset);
+			}
+		}
     }
 
-	// 3. Handle stack arguments
-	// Copy them from caller's frame to local frame
-	for (size_t i = 6; i < param_count; i++)
-	{
-		// Caller puts 7th arg at [RBP + 16], 8th at [RBP + 24], etc.
-		int32_t src_offset = 16 + (i - 6) * 8;
-		int32_t dest_slot = get_slot(i);
-
-		// MOV RAX, [RBP + src_offset]  (Load from caller)
-		emit_load_param(&curr, &size, REG_RAX, src_offset);
-
-		// MOV [RBP + dest_slot], RAX   (Save to local var)
-		emit_store_local(&curr, &size, REG_RAX, dest_slot);
-	}
 	return (size);
 }
+
 void jit_ctx_init(JITContext *ctx, Arena *data_arena, Arena *exec_arena)
 {
 	ctx->data_arena = data_arena;
@@ -165,7 +159,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
     size_t stack_bytes = (ir_func->vreg_count * 8 + 15) & ~15;
 
 	// == PASS 1: Calculate size ===
-    size_t predicted_size = encode_prologue(NULL, stack_bytes, param_count);
+    size_t predicted_size = encode_prologue(NULL, stack_bytes, param_count, ctx);
     IRChunk *chunk = ir_func->head;
 	size_t instruction_count = 0;
     while (chunk)
@@ -191,7 +185,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	// === PASS 2: Emit ===
 	reset_state(ctx);
 	uint8_t *write_ptr = result.code;
-	size_t prologue_size = encode_prologue(write_ptr, stack_bytes, param_count);
+	size_t prologue_size = encode_prologue(write_ptr, stack_bytes, param_count, ctx);
 	write_ptr += prologue_size;
     
     chunk = ir_func->head;
