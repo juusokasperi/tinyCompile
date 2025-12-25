@@ -13,6 +13,9 @@
 # define MAX_EXPRESSION_DEPTH		128
 # define MAX_VREGS_PER_FUNCTION		65536
 
+# define CALLEE_SAVED_COUNT 5
+# define CALLEE_SAVED_SIZE  (CALLEE_SAVED_COUNT * 8)
+
 #define CHECK_LIMIT(value, limit, name) \
     do { \
         if ((value) >= (limit)) { \

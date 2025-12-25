@@ -2,6 +2,7 @@
 # define JIT_INTERNAL_H
 
 # include "jit.h"
+# include "defines.h"
 
 /* --- Shared Globals defined in jit.c --- */
 extern const X86Reg arg_registers[6];

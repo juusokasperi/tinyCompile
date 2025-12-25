@@ -25,6 +25,7 @@ typedef enum {
 } X86Reg;
 
 typedef enum {
+	REX_B = 0x40,
 	REX_W = 0x48,	// 64-bit Operand Size
 	REX_WB = 0x49,	// REX.W + REX_B (for R8-R15)
 } X86Prefix;
@@ -62,6 +63,7 @@ typedef enum {
 	OP_JMP_REL32 = 0xE9,	// JMP rel32
 	OP_PREFIX_0F = 0x0F,	// Prefix for 2-byte opcodes
 	OP_MOVZX = 0xB6,		// MOVZX r64, r/m8 (w/ 0f prefix)
+	OP_LEA = 0x8D,			// Load effective address
 
 	OP_CQO = 0x99,		// Sign extend (RAX -> RDX)
 	OP_IDIV = 0xF7,		// Integer division
@@ -86,6 +88,7 @@ typedef enum {
 } X86Extension;
 
 typedef enum {
+	LOC_NONE = 0,
 	LOC_REG,
 	LOC_STACK,
 	LOC_CONST
@@ -178,5 +181,7 @@ void		emit_cmp(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void		emit_movzx(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void		emit_setcc(uint8_t **buf, size_t *cnt, X86Condition cc, X86Reg dst);
 void		emit_test(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void		emit_pop(uint8_t **buf, size_t *cnt, X86Reg reg);
+void		emit_push(uint8_t **buf, size_t *cnt, X86Reg reg);
 
 #endif

@@ -157,3 +157,16 @@ void	emit_test(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src)
 	emit_u8(buf, cnt, MOD_REG | ((src & 7) << 3) | (dst & 7));
 }
 
+void	emit_push(uint8_t **buf, size_t *cnt, X86Reg reg)
+{
+	if (reg >= 8)
+		emit_u8(buf, cnt, REX_B);
+	emit_u8(buf, cnt, OP_PUSH + (reg & 7));
+}
+
+void	emit_pop(uint8_t **buf, size_t *cnt, X86Reg reg)
+{
+	if (reg >= 8)
+		emit_u8(buf, cnt, REX_B);
+	emit_u8(buf, cnt, OP_POP + (reg & 7));
+}

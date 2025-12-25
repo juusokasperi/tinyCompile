@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "ir.h"
 #include "jit.h"
 #include "jit_internal.h"
@@ -13,7 +14,7 @@ static void	patch_jump_offset(uint8_t *loc, uint8_t *target)
 }
 
 /* --- Private Helper for Standard ALU Ops --- */
-static inline size_t		emit_bin_op_std(uint8_t *buf, IRInstruction *inst, 
+static inline size_t		emit_bin_op_std(uint8_t *buf, IRInstruction *inst,
 				JITContext *ctx, X86Opcode opcode)
 {
 	uint8_t	*curr = buf;
@@ -258,7 +259,7 @@ size_t	encode_mul(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 		emit_mov_reg_reg(&curr, &size, REG_RAX, src_1.reg);
 	else
 	 	emit_load_param(&curr, &size, REG_RAX, src_1.offset);
-	
+
 	X86Reg operand = REG_RCX;
 	if (src_2.type == LOC_REG)
 		operand = src_2.reg;
@@ -280,27 +281,31 @@ size_t	encode_div(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	Location	dest = get_location(ctx, inst->dest);
 	Location	src_1 = get_location(ctx,inst->src_1);
 	Location	src_2 = get_location(ctx, inst->src_2);
-	
+
 	if (src_1.type == LOC_REG)
 		emit_mov_reg_reg(&curr, &size, REG_RAX, src_1.reg);
 	else
 		emit_load_param(&curr, &size, REG_RAX, src_1.offset);
+
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, OP_CQO);
-	
+
 	X86Reg divisor = REG_RCX;
 	if (src_2.type == LOC_REG)
 		divisor = src_2.reg;
 	else
 		emit_load_param(&curr, &size, REG_RCX, src_2.offset);
 
-	emit_u8(&curr, &size, REX_W);
+	uint8_t rex = REX_W;
+	if (divisor >= 8)
+		rex |= 0x01;
+	emit_u8(&curr, &size, rex);
 	emit_u8(&curr, &size, OP_IDIV);
-	emit_u8(&curr, &size, MOD_REG | (EXT_IDIV << 3) | divisor);
+	emit_u8(&curr, &size, MOD_REG | (EXT_IDIV << 3) | (divisor & 7));
 
 	if (dest.type == LOC_REG)
 		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
-	else;
+	else
 		emit_store_local(&curr, &size, REG_RAX, dest.offset);
 	return (size);
 }
@@ -312,7 +317,7 @@ size_t encode_neg(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	size_t	size = 0;
 	Location dest = get_location(ctx, inst->dest);
 	Location src = get_location(ctx, inst->src_1);
-	
+
 	if (src.type == LOC_REG)
 		emit_mov_reg_reg(&curr, &size, REG_RAX, src.reg);
 	else
@@ -370,7 +375,7 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	Location		dest = get_location(ctx, inst->dest);
 	PendingCall 	*pc = &ctx->pending_call;
 	CallSiteList	*cs = &ctx->call_sites;
-	
+
 	// 1. Calculate stack arguments
 	size_t	stack_args = (pc->count > 6) ? (pc->count - 6) : 0;
 	size_t	reg_args = (pc->count > 6) ? 6 : pc->count;
@@ -394,7 +399,7 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 			emit_mov_reg_reg(&curr, &size, REG_RAX, loc.reg);
 		else
 			emit_load_param(&curr, &size, REG_RAX, loc.offset);
-		emit_u8(&curr, &size, OP_PUSH + REG_RAX);
+		emit_push(&curr, &size, REG_RAX);
 	}
 
 	// 4. Handle register args
@@ -404,17 +409,17 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 		int idx = i - 1;
 		Location loc = get_location(ctx, pc->arg_vregs[idx]);
 		if (loc.type == LOC_REG)
-			emit_u8(&curr, &size, OP_PUSH + loc.reg);
+			emit_push(&curr, &size, loc.reg);
 		else
 		{
 			emit_load_param(&curr, &size, REG_RAX, loc.offset);
-			emit_u8(&curr, &size, OP_PUSH + REG_RAX);
+			emit_push(&curr, &size, REG_RAX);
 		}
 	}
-	
+
 	//    b. Pop into abi registers
 	for (size_t i = 0; i < reg_args; ++i)
-		emit_u8(&curr, &size, OP_POP + arg_registers[i]);
+		emit_pop(&curr, &size, arg_registers[i]);
 	// 5. Emit call
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, MOV_IMM_R + REG_RAX);
@@ -454,7 +459,7 @@ size_t encode_ret(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	uint8_t	*curr = buf;
 	size_t	size = 0;
 	Location src = get_location(ctx, inst->src_1);
-	
+
 	if (src.type == LOC_REG)
 	{
 		if (src.reg != REG_RAX)
@@ -463,10 +468,17 @@ size_t encode_ret(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	else
 		emit_load_param(&curr, &size, REG_RAX, src.offset);
 	emit_u8(&curr, &size, REX_W);
-	emit_u8(&curr, &size, MOV_RM_R);
-	emit_u8(&curr, &size, MOD_REG | (REG_RBP << 3) | REG_RSP);
-	emit_u8(&curr, &size, OP_POP + REG_RBP);
-	emit_u8(&curr, &size, OP_RET);
+	emit_u8(&curr, &size, OP_LEA);
+	emit_u8(&curr, &size, MOD_MEM_DISP8 | (REG_RSP << 3) | REG_RBP);
+	emit_u8(&curr, &size, (uint8_t)(-CALLEE_SAVED_SIZE));
+	emit_pop(&curr, &size, (X86Reg)15);
+    emit_pop(&curr, &size, (X86Reg)14);
+    emit_pop(&curr, &size, (X86Reg)13);
+    emit_pop(&curr, &size, (X86Reg)12);
+    emit_pop(&curr, &size, REG_RBX);
+
+    emit_pop(&curr, &size, REG_RBP);
+    emit_u8(&curr, &size, OP_RET);
 	return (size);
 }
 

@@ -18,6 +18,14 @@ const X86Reg arg_registers[6] = {
 /* LINEAR SCAN ALLOCATOR */
 /* ===================== */
 
+/* Strict policy; allocate only Callee-Saved registers. */
+static bool is_allocatable_register(int reg)
+{
+	if (reg == REG_RAX || (reg >= 12 && reg <= 15))
+    	return (true);
+	return (false);
+}
+
 Location get_location(JITContext *ctx, size_t vreg)
 {
 	if (ctx->vreg_map[vreg].type != 0)
@@ -25,8 +33,7 @@ Location get_location(JITContext *ctx, size_t vreg)
 
 	for (int i = 0; i < 16; ++i)
 	{
-		if (i == REG_RSP || i == REG_RBP
-			|| i == REG_RAX || i == REG_RBX)
+		if (!is_allocatable_register(i))
 			continue;
 		if (!ctx->phys_regs[i])
 		{
@@ -71,10 +78,17 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 	size_t	size = 0;
 
 	// 1. Standard prologue (Push RBP, move RBP, sub RSP)
-	emit_u8(&curr, &size, OP_PUSH + REG_RBP);
-	emit_u8(&curr, &size, REX_W);
-	emit_u8(&curr, &size, MOV_RM_R);
-	emit_u8(&curr, &size, MOD_REG | (REG_RSP << 3) | REG_RBP);
+	emit_push(&curr, &size, REG_RBP);
+	emit_mov_reg_reg(&curr, &size, REG_RBP, REG_RSP);
+
+	// 2. Save all callee-saved registers
+	emit_push(&curr, &size, REG_RBX);
+	emit_push(&curr, &size, 12);
+	emit_push(&curr, &size, 13);
+	emit_push(&curr, &size, 14);
+	emit_push(&curr, &size, 15);
+
+	// 3. Allocate stack for locals
 	if (stack_size > 0)
 	{
 		emit_u8(&curr, &size, REX_W);
@@ -83,19 +97,16 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
         emit_u32(&curr, &size, (uint32_t)stack_size);
 	}
 
-	// 2. Handle arguments
+	// 4. Handle arguments
 	for (size_t i = 0; i < param_count; ++i)
 	{
 		Location loc = get_location(ctx, i);
 		if (i < 6)
 		{
 			X86Reg src_reg = arg_registers[i];
-			if (loc.type == LOC_REG)
-			{
-				if (loc.reg != src_reg)
-					emit_mov_reg_reg(&curr, &size, loc.reg, src_reg);
-			}
-			else
+			if (loc.type == LOC_REG && loc.reg != src_reg)
+				emit_mov_reg_reg(&curr, &size, loc.reg, src_reg);
+			else if (loc.type == LOC_STACK)
 				emit_store_local(&curr, &size, src_reg, loc.offset);
 		}
 		else
