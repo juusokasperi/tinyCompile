@@ -96,14 +96,19 @@ static size_t gen_binary_op(Arena *a, IRFunction *f, ASTNode *node, SymbolTable 
 		case AST_MUL:			op = IR_MUL; break;
 		case AST_DIV:			op = IR_DIV; break;
 		case AST_EQUAL:			op = IR_EQ; break;
-        case AST_NOT_EQUAL:		op = IR_NEQ; break;
-        case AST_LESS:			op = IR_LT; break;
-        case AST_LESS_EQUAL:	op = IR_LE; break;
-        case AST_GREATER:		op = IR_GT; break;
+		case AST_NOT_EQUAL:		op = IR_NEQ; break;
+		case AST_LESS:			op = IR_LT; break;
+		case AST_LESS_EQUAL:	op = IR_LE; break;
+		case AST_GREATER:		op = IR_GT; break;
 		case AST_GREATER_EQUAL:	op = IR_GE; break;
 		default:				op = IR_ADD; break;
 	}
-	IRInstruction inst = { .opcode = op, .dest = dest, .src_1 = left, .src_2 = right };
+	IRInstruction inst = {
+		.opcode = op,
+		.type = TYPE_INT64,		// TODO Remove default
+		.dest = dest,
+		.src_1 = left,
+		.src_2 = right };
 	emit(a, f, inst);
 	return (dest);
 }
@@ -128,23 +133,23 @@ static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable
 		case AST_SUB:
 		case AST_MUL:
 		case AST_DIV:
-        case AST_EQUAL:
-        case AST_NOT_EQUAL:
-        case AST_LESS:
-        case AST_LESS_EQUAL:
-        case AST_GREATER:
-        case AST_GREATER_EQUAL:
+		case AST_EQUAL:
+		case AST_NOT_EQUAL:
+		case AST_LESS:
+		case AST_LESS_EQUAL:
+		case AST_GREATER:
+		case AST_GREATER_EQUAL:
 			return (gen_binary_op(a, f, node, symbol_table));
 		case AST_VAR_DECL:
-        case AST_ASSIGNMENT:
-        case AST_RETURN:
-        case AST_IF:
-        case AST_WHILE:
-        case AST_BLOCK:
-        case AST_FUNCTION:
-        case AST_TRANSLATION_UNIT:
+		case AST_ASSIGNMENT:
+		case AST_RETURN:
+		case AST_IF:
+		case AST_WHILE:
+		case AST_BLOCK:
+		case AST_FUNCTION:
+		case AST_TRANSLATION_UNIT:
 			fprintf(stderr, "Internal error: statement in expression context\n");
-            return (0);
+			return (0);
 	}
 }
 
@@ -215,10 +220,10 @@ static void gen_assignment(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *
 	}
 	size_t val_reg = gen_expression(a, f, node->assignment.value, symbol_table);
 	IRInstruction mov = { 
-        .opcode = IR_MOV, 
-        .dest = sym->vreg,
-        .src_1 = val_reg
-    };
+		.opcode = IR_MOV, 
+		.dest = sym->vreg,
+		.src_1 = val_reg
+	};
 	emit(a, f, mov);
 	*last_reg = sym->vreg;
 }
@@ -288,10 +293,10 @@ IRFunction *ir_gen(Arena *a, ASTNode *root)
 		f->name = root->function.name;
 		for (size_t i = 0; i < root->function.param_count; ++i)
 		{
-            Parameter *param = &root->function.params[i];
-            size_t vreg = IR_NEXT_VREG(f);
-            symbol_table_add(&symbol_table, param->name, vreg);
-        }
+			Parameter *param = &root->function.params[i];
+			size_t vreg = IR_NEXT_VREG(f);
+			symbol_table_add(&symbol_table, param->name, vreg);
+		}
 		ASTNode *body = root->function.body;
 		if (body && body->type == AST_BLOCK)
 		{

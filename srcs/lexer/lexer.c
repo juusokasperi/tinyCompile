@@ -44,14 +44,14 @@ Token lexer_next(Lexer *l)
 	switch (c)
 	{
 		case '+': return (lexer_make_token(l, TOKEN_PLUS, text));
-        case '-': return (lexer_make_token(l, TOKEN_MINUS, text));
-        case '*': return (lexer_make_token(l, TOKEN_STAR, text));
-        case '/': return (lexer_make_token(l, TOKEN_SLASH, text));
-        case '(': return (lexer_make_token(l, TOKEN_LPAREN, text));
-        case ')': return (lexer_make_token(l, TOKEN_RPAREN, text));
-        case '{': return (lexer_make_token(l, TOKEN_LBRACE, text));
-        case '}': return (lexer_make_token(l, TOKEN_RBRACE, text));
-        case ';': return (lexer_make_token(l, TOKEN_SEMICOLON, text));
+		case '-': return (lexer_make_token(l, TOKEN_MINUS, text));
+		case '*': return (lexer_make_token(l, TOKEN_STAR, text));
+		case '/': return (lexer_make_token(l, TOKEN_SLASH, text));
+		case '(': return (lexer_make_token(l, TOKEN_LPAREN, text));
+		case ')': return (lexer_make_token(l, TOKEN_RPAREN, text));
+		case '{': return (lexer_make_token(l, TOKEN_LBRACE, text));
+		case '}': return (lexer_make_token(l, TOKEN_RBRACE, text));
+		case ';': return (lexer_make_token(l, TOKEN_SEMICOLON, text));
 		case ',': return (lexer_make_token(l, TOKEN_COMMA, text));
 		case '!':
 			if (lexer_peek(l) == '=')

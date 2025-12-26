@@ -2,16 +2,17 @@
 # define JIT_INTERNAL_H
 
 # include "jit.h"
+# include "defines.h"
 
 /* --- Shared Globals defined in jit.c --- */
-extern const X86Reg arg_registers[6];
+extern const X86Reg arg_registers[10];
 
 /* --- Shared Helpers --- */
-int32_t get_slot(size_t vreg);
+Location get_location(JITContext *ctx, size_t vreg);
 
 /* --- Encoder Prototypes (Auto-Generated) --- */
 #define X_OP(opcode, name, fmt, encoder) \
-    size_t encoder(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx);
+	size_t encoder(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx);
 #include "ir_ops.def"
 #undef X_OP
 

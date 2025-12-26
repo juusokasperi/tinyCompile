@@ -18,7 +18,7 @@ typedef struct CompilationUnit {
 
 typedef struct {
 	CompilationUnit	*units;
-	size_t 			count;
+	size_t			count;
 	size_t			capacity;
 	Arena			*arena;
 	ErrorContext	*errors;

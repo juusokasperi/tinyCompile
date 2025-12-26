@@ -106,23 +106,23 @@ static void print_jit_ir_box_start(void)
 	char *text = " IR DUMP ";
 	size_t len = strlen(text);
 
-    printf("\n  " CYAN BOX_TL);
-    printf(BOX_H);
+	printf("\n  " CYAN BOX_TL);
+	printf(BOX_H);
 	printf("%s", text);
 	for (size_t i = 0; i < 39 - len - 1; ++i)
 		printf(BOX_H);
-    printf(BOX_TR RESET "\n");
+	printf(BOX_TR RESET "\n");
 }
 
 static void print_jit_ir_line(size_t line_num, const char* instruction)
 {
-    printf("  " CYAN BOX_V RESET " %04zu | %-30s " CYAN BOX_V RESET "\n", line_num, instruction);
+	printf("  " CYAN BOX_V RESET " %04zu | %-30s " CYAN BOX_V RESET "\n", line_num, instruction);
 }
 
 static void print_jit_ir_box_end(void)
 {
-    printf("  " CYAN BOX_BL);
-    for (int i = 0; i < 39; ++i)
+	printf("  " CYAN BOX_BL);
+	for (int i = 0; i < 39; ++i)
 		printf(BOX_H);
-    printf(BOX_BR RESET "\n");
+	printf(BOX_BR RESET "\n");
 }

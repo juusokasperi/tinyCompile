@@ -1,3 +1,3 @@
 int main() {
-    return x;  // ERROR: undeclared variable
+	return x;  // ERROR: undeclared variable
 }

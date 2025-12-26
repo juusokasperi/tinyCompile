@@ -12,19 +12,24 @@
 # include "compile.h"
 
 typedef enum {
-    REG_RAX = 0,
-    REG_RCX = 1,
-    REG_RDX = 2,
-    REG_RBX = 3,
-    REG_RSP = 4,
-    REG_RBP = 5,
-    REG_RSI = 6,
-    REG_RDI = 7,
+	REG_RAX = 0,
+	REG_RCX = 1,
+	REG_RDX = 2,
+	REG_RBX = 3,
+	REG_RSP = 4,
+	REG_RBP = 5,
+	REG_RSI = 6,
+	REG_RDI = 7,
 	REG_R8 = 8,
 	REG_R9 = 9,
+	REG_R12 = 12,
+	REG_R13 = 13,
+	REG_R14 = 14,
+	REG_R15 = 15,
 } X86Reg;
 
 typedef enum {
+	REX_B = 0x41,	// REX prefix with B bit set (extends opcode reg)
 	REX_W = 0x48,	// 64-bit Operand Size
 	REX_WB = 0x49,	// REX.W + REX_B (for R8-R15)
 } X86Prefix;
@@ -47,6 +52,7 @@ typedef enum {
 	ALU_CMP = 0x39,
 	ALU_IMM = 0x81,		// 32-bit immediate
 	ALU_IMM8 = 0x83,	// Add/Cmp/Sub r/m, imm8
+	ALU_TEST = 0x85,
 
 	MOV_RM_R = 0x89,	// Store: Move register to r/m
 	MOV_R_RM = 0x8B,	// Load: Move r/m to register
@@ -61,6 +67,7 @@ typedef enum {
 	OP_JMP_REL32 = 0xE9,	// JMP rel32
 	OP_PREFIX_0F = 0x0F,	// Prefix for 2-byte opcodes
 	OP_MOVZX = 0xB6,		// MOVZX r64, r/m8 (w/ 0f prefix)
+	OP_LEA = 0x8D,			// Load effective address
 
 	OP_CQO = 0x99,		// Sign extend (RAX -> RDX)
 	OP_IDIV = 0xF7,		// Integer division
@@ -70,8 +77,8 @@ typedef enum {
 
 typedef enum {
 	MOD_MEM = 0x00,			// [reg]
-	MOD_MEM_DISP8 = 0x40, 	// [reg + disp8]
-	MOD_MEM_DISP32 = 0x80, 	// [reg + disp32]
+	MOD_MEM_DISP8 = 0x40,	// [reg + disp8]
+	MOD_MEM_DISP32 = 0x80,	// [reg + disp32]
 	MOD_REG = 0xC0,			// reg (direct register access)
 } X86ModMode;
 
@@ -83,6 +90,23 @@ typedef enum {
 	EXT_IDIV = 7,
 	EXT_CMP = 7,
 } X86Extension;
+
+typedef enum {
+	LOC_NONE = 0,
+	LOC_REG,
+	LOC_STACK,
+	LOC_CONST
+} LocationType;
+
+typedef struct {
+	LocationType type;
+	union 
+	{
+		X86Reg	reg;
+		int32_t	offset;
+		int64_t	imm;
+	};
+} Location;
 
 typedef struct {
 	uint8_t *code;
@@ -128,7 +152,7 @@ typedef struct {
 } PendingCall;
 
 typedef struct {
-	Arena 				*data_arena;
+	Arena				*data_arena;
 	Arena				*exec_arena;
 	FunctionRegistry	registry;
 	CallSiteList		call_sites;
@@ -137,6 +161,9 @@ typedef struct {
 	uint8_t				*label_offset[MAX_LABELS];
 	bool				label_defined[MAX_LABELS];
 	Patch				*patches;
+
+	Location			*vreg_map;
+	bool				phys_regs[16];
 } JITContext;
 
 bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx, 
@@ -153,9 +180,12 @@ void		emit_load_param(uint8_t **buf, size_t *cnt, X86Reg dst, int32_t disp);
 void		emit_mov_imm(uint8_t **buf, size_t *cnt, X86Reg dst, uint64_t imm);
 void		emit_alu(uint8_t **buf, size_t *cnt, X86Opcode op, X86Reg dst, X86Reg src);
 void		emit_imul_r64(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
-void        emit_mov_reg_reg(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void		emit_mov_reg_reg(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void		emit_cmp(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void		emit_movzx(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
 void		emit_setcc(uint8_t **buf, size_t *cnt, X86Condition cc, X86Reg dst);
+void		emit_test(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg src);
+void		emit_pop(uint8_t **buf, size_t *cnt, X86Reg reg);
+void		emit_push(uint8_t **buf, size_t *cnt, X86Reg reg);
 
 #endif

@@ -92,7 +92,7 @@ void	error_print_all(ErrorContext *ctx)
 		return;
 	fprintf(stderr, "\n");
 	fprintf(stderr, BOLD_WHITE "Compilation failed with %zu error(s) and %zu warning(s)\n" RESET,
-        ctx->error_count, ctx->warning_count);
+		ctx->error_count, ctx->warning_count);
 	fprintf(stderr, "\n");
 
 	ErrorNode	*curr = ctx->head;

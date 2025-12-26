@@ -76,7 +76,7 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
 	};
 	ctx->count++;
 
-	printf(BOLD_GREEN "> LOAD SOURCE: " RESET WHITE "%s (%zu bytes)\n" RESET, filepath, file.length);
+	printf(BOLD_GREEN "  > LOAD SOURCE: " RESET WHITE "%s (%zu bytes)\n" RESET, filepath, file.length);
 	return (true);
 }
 

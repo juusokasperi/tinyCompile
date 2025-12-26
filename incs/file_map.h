@@ -5,7 +5,7 @@
 
 typedef struct {
 	const char	*data;
-	size_t 		length;
+	size_t		length;
 	const char	*name;
 } FileMap;
 
