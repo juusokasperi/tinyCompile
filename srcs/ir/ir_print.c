@@ -4,7 +4,7 @@
 
 #define INST_BUF_SIZE 128
 
-static void	print_jit_ir_box_start(void);
+static void	print_jit_ir_box_start(StringView name);
 static void	print_jit_ir_line(size_t line_num, const char* instruction);
 static void	print_jit_ir_box_end(void);
 
@@ -83,7 +83,7 @@ void ir_print(IRFunction *f)
 {
 	if (!f)
 		return;
-	print_jit_ir_box_start();
+	print_jit_ir_box_start(f->name);
 	IRChunk *curr = f->head;
 	int idx = 0;
 	char buffer[INST_BUF_SIZE];
@@ -101,14 +101,14 @@ void ir_print(IRFunction *f)
 	print_jit_ir_box_end();
 }
 
-static void print_jit_ir_box_start(void)
+static void print_jit_ir_box_start(StringView name)
 {
-	char *text = " IR DUMP ";
-	size_t len = strlen(text);
+	char buffer[INST_BUF_SIZE];	
+	snprintf(buffer, INST_BUF_SIZE, " IR DUMP (%.*s) ", (int)name.len, name.start);
+	size_t len = strlen(buffer);
 
-	printf("\n  " CYAN BOX_TL);
+	printf("\n  " CYAN BOX_TL "%s", buffer);
 	printf(BOX_H);
-	printf("%s", text);
 	for (size_t i = 0; i < 39 - len - 1; ++i)
 		printf(BOX_H);
 	printf(BOX_TR RESET "\n");

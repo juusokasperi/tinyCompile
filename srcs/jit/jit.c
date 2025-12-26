@@ -326,7 +326,7 @@ bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
 				return (false);
 			}
 
-			if (sv_eq_cstr(func->function.name, "main"))
+			//if (sv_eq_cstr(func->function.name, "main"))
 				ir_print(ir);
 
 			JITResult jit = jit_compile_function(jit_ctx, ir, func);
