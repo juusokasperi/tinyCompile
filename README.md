@@ -1,6 +1,6 @@
 # tinyCompile
 
-**tinyCompile** is a lightweight, self-contained C compiler written in C. It implements a complete compilation pipeline, from lexical analysis to x86-64 machine code generation—and executes the compiled code immediately via JIT (Just-In-Time) compilation.
+**tinyCompile** is a lightweight, self-contained C compiler written in C. It implements a complete compilation pipeline, from lexical analysis to x86-64 machine code generation and executes the compiled code immediately via JIT (Just-In-Time) compilation.
 
 Designed as a study in compiler construction, it features a custom linear IR, a linear-scan register allocator, and a custom memory arena allocator.
 
