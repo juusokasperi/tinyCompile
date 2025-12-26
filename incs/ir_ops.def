@@ -29,6 +29,9 @@ X_OP(IR_NEG,	"NEG",      FMT_UNARY,  encode_neg)
 X_OP(IR_NOT,	"NOT",      FMT_UNARY,  encode_not)
 X_OP(IR_MOV,	"MOV",		FMT_UNARY,	encode_mov)
 
+X_OP(IR_LOAD,	"LOAD",		FMT_BIN,	encode_load)
+X_OP(IR_STORE,	"STORE",	FMT_BIN,	encode_store)
+
 // Values
 X_OP(IR_CONST,	"CONST",    FMT_IMM,    encode_const)
 X_OP(IR_ARG,	"ARG",      FMT_ARG,    encode_arg)

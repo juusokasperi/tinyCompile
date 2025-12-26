@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <unistd.h>
 
 // Calling convention
@@ -49,7 +50,8 @@ Location get_location(JITContext *ctx, size_t vreg)
 	ctx->vreg_map[vreg].type = LOC_STACK;
 	// Place locals below the callee-saved spill area (rbp - CALLEE_SAVED_SIZE)
 	// and below the fixed 8-byte pad used to restore 16-byte alignment for calls.
-	ctx->vreg_map[vreg].offset = -(CALLEE_SAVED_SIZE + 8 + (int32_t)(vreg + 1) * 8);
+	int32_t slot_idx = ctx->stack_base + vreg;
+	ctx->vreg_map[vreg].offset = -(CALLEE_SAVED_SIZE + 8 + (int32_t)(slot_idx + 1) * 8);
 	return (ctx->vreg_map[vreg]);
 }
 
@@ -79,7 +81,6 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 {
 	uint8_t	*curr = buf;
 	size_t	size = 0;
-	const size_t align_pad = 8;
 
 	// 1. Standard prologue (Push RBP, move RBP, sub RSP)
 	emit_push(&curr, &size, REG_RBP);
@@ -87,20 +88,19 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 
 	// 2. Save all callee-saved registers
 	emit_push(&curr, &size, REG_RBX);
-	emit_push(&curr, &size, 12);
-	emit_push(&curr, &size, 13);
-	emit_push(&curr, &size, 14);
-	emit_push(&curr, &size, 15);
+	emit_push(&curr, &size, REG_R12);
+	emit_push(&curr, &size, REG_R13);
+	emit_push(&curr, &size, REG_R14);
+	emit_push(&curr, &size, REG_R15);
 
 	// 3. Allocate stack for locals
 	// Always reserve align_pad so that RSP is 16-byte aligned before any CALL
-	size_t total_stack = stack_size + align_pad;
-	if (total_stack > 0)
+	if (stack_size > 0)
 	{
 		emit_u8(&curr, &size, REX_W);
 		emit_u8(&curr, &size, ALU_IMM);
 		emit_u8(&curr, &size, MOD_REG | (EXT_SUB << 3) | REG_RSP);
-		emit_u32(&curr, &size, (uint32_t)total_stack);
+		emit_u32(&curr, &size, (uint32_t)stack_size);
 	}
 
 	// 4. Handle arguments
@@ -168,13 +168,17 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 
 	if (ir_func->label_count >= MAX_LABELS)
 	{
-		fprintf(stderr, BOLD_RED "	> too many labels in function '%.*s' (max %d)\n" RESET,
+		fprintf(stderr, BOLD_RED "  > too many labels in function '%.*s' (max %d)\n" RESET,
 				(int)func_name.len, func_name.start, MAX_LABELS);
 		return (result);
 	}
 
 	// Round locals to 16-byte boundary; align_pad handled inside encode_prologue
-	size_t stack_bytes = (ir_func->vreg_count * 8 + 15) & ~15;
+	ctx->stack_base = ir_func->stack_count;
+	size_t total_slots = ir_func->stack_count + ir_func->vreg_count;
+	size_t stack_bytes = total_slots * 8;
+	if ((stack_bytes % 16) == 0)
+		stack_bytes += 8;
 
 	// == PASS 1: Calculate size ===
 	size_t predicted_size = encode_prologue(NULL, stack_bytes, param_count, ctx);
@@ -218,9 +222,9 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 			{
 				fprintf(stderr, BOLD_RED
 						"  > JIT CODE GENERATION BUG: buffer overrun!\n"
-						"	 Predicted: %zu bytes\n"
-						"	 Actually wrote: %zu bytes\n"
-						"	 Instruction: %s\n" RESET,
+						"    Predicted: %zu bytes\n"
+						"    Actually wrote: %zu bytes\n"
+						"    Instruction: %s\n" RESET,
 						predicted_size, written,
 						ir_opcode_name(chunk->instructions[i].opcode));
 				abort();
@@ -235,9 +239,9 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	{
 		fprintf(stderr, BOLD_RED
 				"  > JIT CODE GENERATION BUG: size mismatch!\n"
-				"	 Pass 1 predicted: %zu bytes\n"
-				"	 Pass 2 generated: %zu bytes\n"
-				"	 Difference: %zd bytes\n" RESET,
+				"    Pass 1 predicted: %zu bytes\n"
+				"    Pass 2 generated: %zu bytes\n"
+				"    Difference: %zd bytes\n" RESET,
 				predicted_size, actual_size,
 				(ssize_t)actual_size - (ssize_t)predicted_size);
 		fprintf(stderr,"\n	> IR dump for failed function:\n");

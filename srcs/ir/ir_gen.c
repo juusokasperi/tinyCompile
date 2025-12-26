@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "ir.h"
+#include "jit.h"
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -36,10 +37,23 @@ static size_t gen_number(Arena *a, IRFunction *f, ASTNode *node)
 	return (reg);
 }
 
-static size_t gen_identifier(ASTNode *node, SymbolTable *symbol_table)
+static size_t gen_identifier(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbol_table)
 {
 	Symbol *sym = symbol_table_lookup(symbol_table, node->identifier.name);
-	return (sym ? sym->vreg : 0);
+	if (!sym)
+		return (0);
+	if (sym->is_stack)
+	{
+		size_t	temp_reg = IR_NEXT_VREG(f);
+		IRInstruction load = {
+			.opcode = IR_LOAD,
+			.dest = temp_reg,
+			.src_1 = sym->index
+		};
+		emit(a, f, load);
+		return (temp_reg);
+	}
+	return (sym->index);
 }
 
 static size_t gen_call(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbol_table)
@@ -123,7 +137,7 @@ static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable
 		case AST_NUMBER:
 			return (gen_number(a, f, node));
 		case AST_IDENTIFIER:
-			return (gen_identifier(node, symbol_table));
+			return (gen_identifier(a, f, node, symbol_table));
 		case AST_CALL:
 			return (gen_call(a, f, node, symbol_table));
 		case AST_NEGATE:
@@ -196,36 +210,61 @@ static void	gen_while(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbo
 
 static void gen_var_decl(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbol_table, size_t *last_reg)
 {
+	size_t	stack_idx = f->stack_count++;
 	size_t	init_reg;
-
+	
+	symbol_table_add(symbol_table, node->var_decl.var_name, stack_idx);
+	Symbol *sym = symbol_table_lookup(symbol_table, node->var_decl.var_name);
+	if (sym)
+		sym->is_stack = true;
 	if (node->var_decl.initializer)
+	{
 		init_reg = gen_expression(a, f, node->var_decl.initializer, symbol_table);
+		IRInstruction store = {
+			.opcode = IR_STORE,
+			.dest = stack_idx,
+			.src_1 = init_reg
+		};
+		emit(a, f, store);
+		*last_reg = init_reg;
+	}
 	else
 	{
 		init_reg = IR_NEXT_VREG(f);
 		IRInstruction inst = { .opcode = IR_CONST, .dest = init_reg, .imm = 0 };
 		emit(a, f, inst);
 	}
-	symbol_table_add(symbol_table, node->var_decl.var_name, init_reg);
+	IRInstruction store = {
+		.opcode = IR_STORE,
+		.dest = stack_idx,
+		.src_1 = init_reg
+	};
+	emit(a, f, store);
 	*last_reg = init_reg;
 }
 
 static void gen_assignment(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbol_table, size_t *last_reg)
 {
-	Symbol *sym = symbol_table_lookup(symbol_table, node->assignment.var_name);
+	Symbol		*sym = symbol_table_lookup(symbol_table, node->assignment.var_name);
+	IROpcode	opcode = IR_MOV;
+	size_t		val_reg;
+
 	if (!sym)
 	{
 		fprintf(stderr, "Error: Assignment to undefined variable\n");
 		return;
 	}
-	size_t val_reg = gen_expression(a, f, node->assignment.value, symbol_table);
-	IRInstruction mov = { 
-		.opcode = IR_MOV, 
-		.dest = sym->vreg,
+
+	val_reg = gen_expression(a, f, node->assignment.value, symbol_table);
+	if (sym->is_stack)
+		opcode = IR_STORE;
+	IRInstruction instruction = {
+		.opcode = opcode,
+		.dest = sym->index,
 		.src_1 = val_reg
 	};
-	emit(a, f, mov);
-	*last_reg = sym->vreg;
+	emit(a, f, instruction);
+	*last_reg = val_reg;
 }
 
 static void gen_return(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *symbol_table)

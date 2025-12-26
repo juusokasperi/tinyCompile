@@ -58,7 +58,8 @@ void symbol_table_add(SymbolTable *st, StringView name, size_t vreg)
 			change->next = st->changes;
 			st->changes = change;
 			st->entries[curr].name = name;
-			st->entries[curr].vreg = vreg;
+			st->entries[curr].index = vreg;
+			st->entries[curr].is_stack = false;
 			st->entries[curr].occupied = true;
 			return;
 		}

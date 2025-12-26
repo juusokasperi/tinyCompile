@@ -13,6 +13,11 @@ static void	patch_jump_offset(uint8_t *loc, uint8_t *target)
 	memcpy(loc, &rel, sizeof(int32_t));
 }
 
+static inline int32_t	get_local_offset(size_t idx)
+{
+	return (-(CALLEE_SAVED_SIZE + 8 + (int32_t)(idx + 1) * 8));
+}
+
 /* --- Private Helper for Standard ALU Ops --- */
 static inline size_t		emit_bin_op_std(uint8_t *buf, IRInstruction *inst,
 				JITContext *ctx, X86Opcode opcode)
@@ -279,7 +284,7 @@ size_t	encode_div(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	uint8_t	*curr = buf;
 	size_t	size = 0;
 	Location	dest = get_location(ctx, inst->dest);
-	Location	src_1 = get_location(ctx,inst->src_1);
+	Location	src_1 = get_location(ctx, inst->src_1);
 	Location	src_2 = get_location(ctx, inst->src_2);
 
 	if (src_1.type == LOC_REG)
@@ -482,3 +487,42 @@ size_t encode_ret(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	return (size);
 }
 
+size_t encode_store(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;
+	uint8_t		*curr = buf;
+	size_t		size = 0;
+	size_t		stack_idx = inst->dest;
+	size_t		src_vreg = inst->src_1;
+	Location	src = get_location(ctx, src_vreg);
+	int32_t		offset = get_local_offset(stack_idx);
+
+	if (src.type == LOC_REG)
+		emit_store_local(&curr, &size, src.reg, offset);
+	else
+	{
+		emit_load_param(&curr, &size, REG_RAX, src.offset);
+		emit_store_local(&curr, &size, REG_RAX, offset);
+	}
+	return (size);
+}
+
+size_t encode_load(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;
+	uint8_t		*curr = buf;
+	size_t		size = 0;
+	size_t		dest_vreg = inst->dest;
+	size_t		stack_idx = inst->src_1;
+	Location	dest = get_location(ctx, dest_vreg);
+	int32_t		offset = get_local_offset(stack_idx);
+	
+	if (dest.type == LOC_REG)
+		emit_load_param(&curr, &size, dest.reg, offset);
+	else
+	{
+		emit_load_param(&curr, &size, REG_RAX, offset);
+		emit_store_local(&curr, &size, REG_RAX, dest.offset);
+	}
+	return (size);
+}

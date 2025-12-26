@@ -164,6 +164,7 @@ typedef struct {
 
 	Location			*vreg_map;
 	bool				phys_regs[16];
+	size_t				stack_base;
 } JITContext;
 
 bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx, 

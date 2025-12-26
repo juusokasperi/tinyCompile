@@ -13,7 +13,8 @@ typedef struct ScopeChange ScopeChange;
 
 typedef struct {
 	StringView	name;
-	size_t		vreg;
+	size_t		index;
+	bool		is_stack;
 	bool		occupied;
 } Symbol;
 
@@ -71,6 +72,7 @@ typedef struct {
 	IRChunk		*tail;
 	size_t		total_count;
 	size_t		vreg_count;
+	size_t		stack_count;
 	size_t		label_count;
 	StringView	name;
 } IRFunction;
