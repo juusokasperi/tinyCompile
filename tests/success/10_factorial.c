@@ -1,12 +1,10 @@
 int factorial(int n) {
-	int result = 1;
-	int i = 1;
-	
-	while (i <= n) {
-		result = result * i;
-		i = i + 1;
-	}
-	
-	return result;
+    if (n < 2) {
+        return 1;
+    }
+    return n * factorial(n - 1);
 }
 
+int main(void) {
+	return (factorial(5));
+}
