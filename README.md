@@ -105,6 +105,11 @@ $ ./tinyCompile tests/success/10_factorial.c
   ║ 0002 | %v1 = CALL factorial           ║
   ║ 0003 | RET %v1                        ║
   ╚═══════════════════════════════════════╝
+
+[05] EXECUTION.............................
+  -----------------------------------------
+   RETURN CODE >> 120
+  -----------------------------------------
 ```
 
 ## Internals: Intermediate Representation
