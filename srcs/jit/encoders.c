@@ -471,10 +471,10 @@ size_t encode_ret(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	emit_u8(&curr, &size, OP_LEA);
 	emit_u8(&curr, &size, MOD_MEM_DISP8 | (REG_RSP << 3) | REG_RBP);
 	emit_u8(&curr, &size, (uint8_t)(-CALLEE_SAVED_SIZE));
-	emit_pop(&curr, &size, (X86Reg)15);
-	emit_pop(&curr, &size, (X86Reg)14);
-	emit_pop(&curr, &size, (X86Reg)13);
-	emit_pop(&curr, &size, (X86Reg)12);
+	emit_pop(&curr, &size, REG_R15);
+	emit_pop(&curr, &size, REG_R14);
+	emit_pop(&curr, &size, REG_R13);
+	emit_pop(&curr, &size, REG_R12);
 	emit_pop(&curr, &size, REG_RBX);
 
 	emit_pop(&curr, &size, REG_RBP);

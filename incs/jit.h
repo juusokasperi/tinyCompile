@@ -22,6 +22,10 @@ typedef enum {
 	REG_RDI = 7,
 	REG_R8 = 8,
 	REG_R9 = 9,
+	REG_R12 = 12,
+	REG_R13 = 13,
+	REG_R14 = 14,
+	REG_R15 = 15,
 } X86Reg;
 
 typedef enum {

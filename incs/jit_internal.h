@@ -5,7 +5,7 @@
 # include "defines.h"
 
 /* --- Shared Globals defined in jit.c --- */
-extern const X86Reg arg_registers[6];
+extern const X86Reg arg_registers[10];
 
 /* --- Shared Helpers --- */
 Location get_location(JITContext *ctx, size_t vreg);

@@ -102,12 +102,12 @@ void print_ast(ASTNode *node, int indent)
 void print_header(void)
 {
 	const char *logo = RESET BOLD GREEN
-	BOX_V RESET CYAN "	_	_									" RESET BOLD GREEN BOX_V "\n"		
-	BOX_V RESET CYAN " | |_(_)_ __	_	_						" RESET BOLD GREEN BOX_V "\n" 
-	BOX_V RESET CYAN " | __| | '_ \\| | | |  " BOLD "tinyCompile v0.1	 " RESET BOLD GREEN BOX_V "\n"
-	BOX_V RESET CYAN " | |_| | | | | |_| |	" BOLD "Build: release		" RESET BOLD GREEN BOX_V "\n"
-	BOX_V RESET CYAN "	\\__|_|_| |_|\\__, |					  " RESET BOLD GREEN BOX_V "\n"
-	BOX_V RESET CYAN "				|___/						" RESET BOLD GREEN BOX_V "\n";
+	BOX_V RESET CYAN "  _   _                                   " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN " | |_(_)_ __  _   _                       " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN " | __| | '_ \\| | | |  " BOLD "tinyCompile v0.1    " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN " | |_| | | | | |_| |	" BOLD "Build: release     " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN "  \\__|_|_| |_|\\__, |                      " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN "               |___/                      " RESET BOLD GREEN BOX_V "\n";
 	
 	printf(BOLD GREEN BOX_TL);
 	for (int i = 0; i < 42; ++i)

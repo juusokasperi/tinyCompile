@@ -106,7 +106,7 @@ static void print_jit_ir_box_start(void)
 	char *text = " IR DUMP ";
 	size_t len = strlen(text);
 
-	printf("\n	" CYAN BOX_TL);
+	printf("\n  " CYAN BOX_TL);
 	printf(BOX_H);
 	printf("%s", text);
 	for (size_t i = 0; i < 39 - len - 1; ++i)

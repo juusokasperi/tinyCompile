@@ -10,8 +10,9 @@
 #include <unistd.h>
 
 // Calling convention
-const X86Reg arg_registers[6] = {
+const X86Reg arg_registers[10] = {
 	REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9,
+	REG_R12, REG_R13, REG_R14, REG_R15
 };
 
 /* ===================== */
@@ -21,7 +22,7 @@ const X86Reg arg_registers[6] = {
 /* Strict policy; allocate only Callee-Saved registers. */
 static bool is_allocatable_register(int reg)
 {
-	if (reg == REG_RBX || (reg >= 12 && reg <= 15))
+	if (reg == REG_RBX || (reg >= REG_R12 && reg <= REG_R15))
 		return (true);
 	return (false);
 }
