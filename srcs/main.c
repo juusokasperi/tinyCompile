@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 
 	if (!jit_link_all(&jit_ctx, &errors))
 	{
-		fprintf(stderr, BOLD_RED "  > linking failed\n" RESET);
+		fprintf(stderr, BOLD_RED "	> linking failed\n" RESET);
 		goto cleanup;
 	}
 
@@ -80,17 +80,17 @@ int main(int argc, char **argv)
 	bool found_main = false;
 	for (size_t i = 0; i < jit_ctx.registry.count; i++)
 	{
-    	if (sv_eq_cstr(jit_ctx.registry.functions[i].name, "main"))
+		if (sv_eq_cstr(jit_ctx.registry.functions[i].name, "main"))
 		{
-        	JITFunc main_func = (JITFunc)jit_ctx.registry.functions[i].code_addr;
-        	int64_t result = main_func();
-			printf(GREEN "  -----------------------------------------\n");
-    		printf("   RETURN CODE >> " BOLD_WHITE "%lld" RESET "\n", result);
-    		printf(GREEN "  -----------------------------------------\n" RESET);
+			JITFunc main_func = (JITFunc)jit_ctx.registry.functions[i].code_addr;
+			int64_t result = main_func();
+			printf(GREEN "	-----------------------------------------\n");
+			printf("   RETURN CODE >> " BOLD_WHITE "%lld" RESET "\n", result);
+			printf(GREEN "	-----------------------------------------\n" RESET);
 			found_main = true;
 			exit_code = 0;
-        	break;
-    	}
+			break;
+		}
 	}
 
 	if (!found_main)

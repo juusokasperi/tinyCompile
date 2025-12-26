@@ -42,7 +42,7 @@ ASTNode		*parse_expr_stmt(Parser *parser);
 // === Utils (parser_utils.c ===
 void		parser_advance(Parser *parser);
 void		parser_consume(Parser *parser, TokenType type, const char *message);
-void 		parser_error(Parser *parser, const char *fmt, ...);
+void		parser_error(Parser *parser, const char *fmt, ...);
 void		parser_synchronize(Parser *parser);
 bool		match(Parser *parser, TokenType type);
 bool		check(Parser *parser, TokenType type);

@@ -94,24 +94,24 @@ struct ASTNode {
 		} return_stmt;
 
 		struct {
-			StringView 	var_name;
+			StringView	var_name;
 			ASTNode		*initializer;
 		} var_decl;
 
 		struct {
 			StringView	var_name;
-			ASTNode 	*value;
+			ASTNode		*value;
 		} assignment;
 
 		struct {
-			ASTNode 	**statements;
-			size_t 		count;
+			ASTNode		**statements;
+			size_t		count;
 		} block;
 
 		struct {
 			StringView	name;
 			Parameter	*params;
-			size_t 		param_count;
+			size_t		param_count;
 			ASTNode		*body;
 			bool		is_prototype;
 		} function;

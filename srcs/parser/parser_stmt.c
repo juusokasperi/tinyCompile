@@ -12,13 +12,13 @@ ASTNode	*parse_statement(Parser *parser)
 
 ASTNode* parse_block(Parser *parser)
 {
-    parser_consume(parser, TOKEN_LBRACE, "Expected '{'");
-    
-    ASTNode **stmts = arena_alloc(
+	parser_consume(parser, TOKEN_LBRACE, "Expected '{'");
+	
+	ASTNode **stmts = arena_alloc(
 			parser->arena, sizeof(ASTNode*) * MAX_BLOCK_STATEMENTS);
-    size_t count = 0;
-    
-    while (!check(parser, TOKEN_RBRACE) 
+	size_t count = 0;
+	
+	while (!check(parser, TOKEN_RBRACE) 
 			&& !check(parser, TOKEN_EOF))
 	{
 		if (count >= MAX_BLOCK_STATEMENTS)
@@ -34,18 +34,18 @@ ASTNode* parse_block(Parser *parser)
 			stmts[count++] = stmt;
 		else
 			parser_synchronize(parser);
-    }
-    
-    parser_consume(parser, TOKEN_RBRACE, "Expected '}'");
-    ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
-    *node = (ASTNode){
-        .type = AST_BLOCK,
-        .block = {
-            .statements = stmts,
-            .count = count
-        }
-    };
-    return (node);
+	}
+	
+	parser_consume(parser, TOKEN_RBRACE, "Expected '}'");
+	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
+	*node = (ASTNode){
+		.type = AST_BLOCK,
+		.block = {
+			.statements = stmts,
+			.count = count
+		}
+	};
+	return (node);
 }
 
 ASTNode	*parse_function(Parser *parser)

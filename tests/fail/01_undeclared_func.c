@@ -1,3 +1,3 @@
 int main() {
-    return foo();  // ERROR: undeclared function
+	return foo();  // ERROR: undeclared function
 }

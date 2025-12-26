@@ -46,30 +46,30 @@ void print_ast(ASTNode *node, int indent)
 	switch (node->type)
 	{
 		case AST_FUNCTION:
-            printf("Function: %.*s\n", (int)node->function.name.len, node->function.name.start);
-            print_ast(node->function.body, indent + 1);
-            break;
+			printf("Function: %.*s\n", (int)node->function.name.len, node->function.name.start);
+			print_ast(node->function.body, indent + 1);
+			break;
 		case AST_BLOCK:
-            printf("Block\n");
-            for (size_t i = 0; i < node->block.count; ++i)
-                print_ast(node->block.statements[i], indent + 1);
-            break;
+			printf("Block\n");
+			for (size_t i = 0; i < node->block.count; ++i)
+				print_ast(node->block.statements[i], indent + 1);
+			break;
 		case AST_VAR_DECL:
-            printf("VarDecl: %.*s\n", (int)node->var_decl.var_name.len, node->var_decl.var_name.start);
-            if (node->var_decl.initializer)
-                print_ast(node->var_decl.initializer, indent + 2);
-            break;
-        case AST_ASSIGNMENT:
-            printf("Assign: %.*s\n", (int)node->assignment.var_name.len, node->assignment.var_name.start);
-            print_ast(node->assignment.value, indent + 1);
-            break;
-        case AST_RETURN:
-            printf("Return\n");
-            print_ast(node->return_stmt.expression, indent + 1);
-            break;
-        case AST_IDENTIFIER:
-            printf("ID: %.*s\n", (int)node->identifier.name.len, node->identifier.name.start);
-            break;
+			printf("VarDecl: %.*s\n", (int)node->var_decl.var_name.len, node->var_decl.var_name.start);
+			if (node->var_decl.initializer)
+				print_ast(node->var_decl.initializer, indent + 2);
+			break;
+		case AST_ASSIGNMENT:
+			printf("Assign: %.*s\n", (int)node->assignment.var_name.len, node->assignment.var_name.start);
+			print_ast(node->assignment.value, indent + 1);
+			break;
+		case AST_RETURN:
+			printf("Return\n");
+			print_ast(node->return_stmt.expression, indent + 1);
+			break;
+		case AST_IDENTIFIER:
+			printf("ID: %.*s\n", (int)node->identifier.name.len, node->identifier.name.start);
+			break;
 		case AST_NUMBER:
 			printf("Int: %.*s\n", (int)node->number.value.len, node->number.value.start);
 			break;
@@ -78,17 +78,17 @@ void print_ast(ASTNode *node, int indent)
 		case AST_MUL:	printf("Op: *\n"); break;
 		case AST_DIV:	printf("Op: /\n"); break;
 		case AST_CALL:
-    		printf("Call: %.*s(", (int)node->call.function_name.len, node->call.function_name.start);
-    		for (size_t i = 0; i < node->call.arg_count; i++)
+			printf("Call: %.*s(", (int)node->call.function_name.len, node->call.function_name.start);
+			for (size_t i = 0; i < node->call.arg_count; i++)
 			{
-        		if (i > 0) printf(", ");
-        		printf("arg%zu", i);
-    		}
-    		printf(")\n");
-    		for (size_t i = 0; i < node->call.arg_count; i++) {
-   		    	print_ast(node->call.args[i], indent + 1);
-  			}
-    		break;
+				if (i > 0) printf(", ");
+				printf("arg%zu", i);
+			}
+			printf(")\n");
+			for (size_t i = 0; i < node->call.arg_count; i++) {
+				print_ast(node->call.args[i], indent + 1);
+			}
+			break;
 		default:		printf("Unknown node\n"); break;
 	}
 
@@ -102,12 +102,12 @@ void print_ast(ASTNode *node, int indent)
 void print_header(void)
 {
 	const char *logo = RESET BOLD GREEN
-	BOX_V RESET CYAN "  _   _                                   " RESET BOLD GREEN BOX_V "\n"       
-	BOX_V RESET CYAN " | |_(_)_ __  _   _                       " RESET BOLD GREEN BOX_V "\n" 
-	BOX_V RESET CYAN " | __| | '_ \\| | | |  " BOLD "tinyCompile v0.1    " RESET BOLD GREEN BOX_V "\n"
-	BOX_V RESET CYAN " | |_| | | | | |_| |  " BOLD "Build: release      " RESET BOLD GREEN BOX_V "\n"
-	BOX_V RESET CYAN "  \\__|_|_| |_|\\__, |                      " RESET BOLD GREEN BOX_V "\n"
-	BOX_V RESET CYAN "              |___/                       " RESET BOLD GREEN BOX_V "\n";
+	BOX_V RESET CYAN "	_	_									" RESET BOLD GREEN BOX_V "\n"		
+	BOX_V RESET CYAN " | |_(_)_ __	_	_						" RESET BOLD GREEN BOX_V "\n" 
+	BOX_V RESET CYAN " | __| | '_ \\| | | |  " BOLD "tinyCompile v0.1	 " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN " | |_| | | | | |_| |	" BOLD "Build: release		" RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN "	\\__|_|_| |_|\\__, |					  " RESET BOLD GREEN BOX_V "\n"
+	BOX_V RESET CYAN "				|___/						" RESET BOLD GREEN BOX_V "\n";
 	
 	printf(BOLD GREEN BOX_TL);
 	for (int i = 0; i < 42; ++i)

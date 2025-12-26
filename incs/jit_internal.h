@@ -12,7 +12,7 @@ Location get_location(JITContext *ctx, size_t vreg);
 
 /* --- Encoder Prototypes (Auto-Generated) --- */
 #define X_OP(opcode, name, fmt, encoder) \
-    size_t encoder(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx);
+	size_t encoder(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx);
 #include "ir_ops.def"
 #undef X_OP
 

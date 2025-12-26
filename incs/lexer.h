@@ -23,8 +23,8 @@ typedef struct {
 	const char	*start;
 	const char	*curr;
 	const char	*end;
-	int 		line;
-	int 		column;
+	int			line;
+	int			column;
 	FileMap		*file;
 } Lexer;
 

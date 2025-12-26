@@ -22,7 +22,7 @@ const X86Reg arg_registers[6] = {
 static bool is_allocatable_register(int reg)
 {
 	if (reg == REG_RBX || (reg >= 12 && reg <= 15))
-    	return (true);
+		return (true);
 	return (false);
 }
 
@@ -167,7 +167,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 
 	if (ir_func->label_count >= MAX_LABELS)
 	{
-		fprintf(stderr, BOLD_RED "  > too many labels in function '%.*s' (max %d)\n" RESET,
+		fprintf(stderr, BOLD_RED "	> too many labels in function '%.*s' (max %d)\n" RESET,
 				(int)func_name.len, func_name.start, MAX_LABELS);
 		return (result);
 	}
@@ -193,9 +193,9 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 
 	// === Allocate ===
 	result.code = arena_alloc_aligned(ctx->exec_arena, predicted_size, 16);
-    if (!result.code)
+	if (!result.code)
 	{
-		fprintf(stderr, BOLD_RED "  > failed to allocate %zu bytes for JIT code\n" RESET,
+		fprintf(stderr, BOLD_RED "	> failed to allocate %zu bytes for JIT code\n" RESET,
 				predicted_size);
 	}
 
@@ -205,28 +205,28 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	size_t prologue_size = encode_prologue(write_ptr, stack_bytes, param_count, ctx);
 	write_ptr += prologue_size;
 
-    chunk = ir_func->head;
-    while (chunk)
+	chunk = ir_func->head;
+	while (chunk)
 	{
-        for (size_t i = 0; i < chunk->count; ++i)
+		for (size_t i = 0; i < chunk->count; ++i)
 		{
 			size_t inst_size = encode_inst(write_ptr, &chunk->instructions[i], ctx);
-            write_ptr += inst_size;
+			write_ptr += inst_size;
 			size_t written = write_ptr - result.code;
 			if (written > predicted_size)
 			{
 				fprintf(stderr, BOLD_RED
 						"  > JIT CODE GENERATION BUG: buffer overrun!\n"
-						"  	 Predicted: %zu bytes\n"
-						"    Actually wrote: %zu bytes\n"
-						"    Instruction: %s\n" RESET,
+						"	 Predicted: %zu bytes\n"
+						"	 Actually wrote: %zu bytes\n"
+						"	 Instruction: %s\n" RESET,
 						predicted_size, written,
 						ir_opcode_name(chunk->instructions[i].opcode));
 				abort();
 			}
 		}
-        chunk = chunk->next;
-    }
+		chunk = chunk->next;
+	}
 
 	// === Verify size match ===
 	size_t actual_size = write_ptr - result.code;
@@ -234,12 +234,12 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	{
 		fprintf(stderr, BOLD_RED
 				"  > JIT CODE GENERATION BUG: size mismatch!\n"
-				"    Pass 1 predicted: %zu bytes\n"
-				"    Pass 2 generated: %zu bytes\n"
-				"    Difference: %zd bytes\n" RESET,
+				"	 Pass 1 predicted: %zu bytes\n"
+				"	 Pass 2 generated: %zu bytes\n"
+				"	 Difference: %zd bytes\n" RESET,
 				predicted_size, actual_size,
 				(ssize_t)actual_size - (ssize_t)predicted_size);
-		fprintf(stderr,"\n  > IR dump for failed function:\n");
+		fprintf(stderr,"\n	> IR dump for failed function:\n");
 		ir_print(ir_func);
 		abort();
 	}
@@ -247,7 +247,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	result.size = actual_size;
 
 	// === Register this function ===
-    if (ctx->registry.count >= MAX_FUNCTION_COUNT)
+	if (ctx->registry.count >= MAX_FUNCTION_COUNT)
 	{
 		fprintf(stderr, BOLD_RED
 				"  > too many functions (max %d)\n" RESET,
@@ -258,7 +258,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 			.name = func_name,
 			.code_addr = result.code,
 			.code_size = result.size
-    };
+	};
 	return (result);
 }
 
@@ -308,7 +308,7 @@ bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
 		{
 			ASTNode *func = unit->ast->translation_unit.declarations[j];
 			if (func->function.is_prototype)
-                continue;
+				continue;
 			printf("  :: compiling symbol '%.*s'\n", (int)func->function.name.len, func->function.name.start);
 
 			IRFunction *ir = ir_gen(jit_ctx->data_arena, func);
@@ -327,7 +327,7 @@ bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
 			JITResult jit = jit_compile_function(jit_ctx, ir, func);
 			if (!jit.code)
 			{
-				fprintf(stderr, BOLD_RED "  > compilation failed\n" RESET);
+				fprintf(stderr, BOLD_RED "	> compilation failed\n" RESET);
 				error_fatal(errors, unit->file.name, func->line, 0,
 						"JIT compilation failed for function '%.*s'",
 						(int)func->function.name.len, func->function.name.start);

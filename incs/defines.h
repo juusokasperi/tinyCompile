@@ -14,30 +14,30 @@
 # define MAX_VREGS_PER_FUNCTION		65536
 
 # define CALLEE_SAVED_COUNT 5
-# define CALLEE_SAVED_SIZE  (CALLEE_SAVED_COUNT * 8)
+# define CALLEE_SAVED_SIZE	(CALLEE_SAVED_COUNT * 8)
 
 #define CHECK_LIMIT(value, limit, name) \
-    do { \
-        if ((value) >= (limit)) { \
-            fprintf(stderr, "Limit exceeded: %s (got %zu, max %zu)\n", \
-                    name, (size_t)(value), (size_t)(limit)); \
-            return false; \
-        } \
-    } while (0)
+	do { \
+		if ((value) >= (limit)) { \
+			fprintf(stderr, "Limit exceeded: %s (got %zu, max %zu)\n", \
+					name, (size_t)(value), (size_t)(limit)); \
+			return false; \
+		} \
+	} while (0)
 
 #define CHECK_LIMIT_NULL(value, limit, name) \
-    do { \
-        if ((value) >= (limit)) { \
-            fprintf(stderr, "Limit exceeded: %s (got %zu, max %zu)\n", \
-                    name, (size_t)(value), (size_t)(limit)); \
-            return NULL; \
-        } \
-    } while (0)
+	do { \
+		if ((value) >= (limit)) { \
+			fprintf(stderr, "Limit exceeded: %s (got %zu, max %zu)\n", \
+					name, (size_t)(value), (size_t)(limit)); \
+			return NULL; \
+		} \
+	} while (0)
 
 // Static assertions to ensure sane defaults
 _Static_assert((SYMBOL_TABLE_SIZE & (SYMBOL_TABLE_SIZE - 1)) == 0, 
-               "SYMBOL_TABLE_SIZE must be power of 2");
+			   "SYMBOL_TABLE_SIZE must be power of 2");
 _Static_assert(MAX_PARAMS_PER_FUNCTION <= 255,
-               "MAX_PARAMS_PER_FUNCTION must fit in uint8_t");
+			   "MAX_PARAMS_PER_FUNCTION must fit in uint8_t");
 
 #endif
