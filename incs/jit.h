@@ -25,7 +25,7 @@ typedef enum {
 } X86Reg;
 
 typedef enum {
-	REX_B = 0x40,
+	REX_B = 0x41,   // REX prefix with B bit set (extends opcode reg)
 	REX_W = 0x48,	// 64-bit Operand Size
 	REX_WB = 0x49,	// REX.W + REX_B (for R8-R15)
 } X86Prefix;

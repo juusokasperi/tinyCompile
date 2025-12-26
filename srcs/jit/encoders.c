@@ -350,7 +350,7 @@ size_t encode_not(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	emit_u8(&curr, &size, 0x00);
 	emit_setcc(&curr, &size, CC_E, REG_RAX);
 	emit_movzx(&curr, &size, REG_RAX, REG_RAX);
-	if (src.type == LOC_REG)
+	if (dest.type == LOC_REG)
 		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
 	else
 		emit_store_local(&curr, &size, REG_RAX, dest.offset);

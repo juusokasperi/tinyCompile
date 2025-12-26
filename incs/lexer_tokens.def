@@ -45,12 +45,12 @@ X_TOKEN(TOKEN_GREATER_EQUAL,">=",    false,			PREC_COMPARISON,	NULL,	parse_binar
 X_TOKEN(TOKEN_EQUAL,		"=",        false,		PREC_ASSIGNMENT,	NULL,	parse_assignment, NULL)
 
 // Grouping & Calls
-X_TOKEN(TOKEN_LPAREN,		"(",        false,		PREC_CALL,	parse_grouping,	parse_call, parse_block)
+X_TOKEN(TOKEN_LPAREN,		"(",        false,		PREC_CALL,	parse_grouping,	parse_call, NULL)
 X_TOKEN(TOKEN_RPAREN,		")",        false,		PREC_NONE,	NULL,			NULL,		NULL)
 
 // Syntax
 X_TOKEN(TOKEN_SEMICOLON,	";",        false,		PREC_NONE,			NULL,           NULL,	NULL)
-X_TOKEN(TOKEN_LBRACE,		"{",        false,		PREC_NONE,			NULL,			NULL,	NULL)
+X_TOKEN(TOKEN_LBRACE,		"{",        false,		PREC_NONE,			NULL,			NULL,	parse_block)
 X_TOKEN(TOKEN_RBRACE,		"}",        false,		PREC_NONE,			NULL,			NULL,	NULL)
 X_TOKEN(TOKEN_COMMA,		",",        false,		PREC_NONE,			NULL,			NULL,	NULL)
 X_TOKEN(TOKEN_EOF,			"EOF",      false,		PREC_NONE,			NULL,			NULL,	NULL)

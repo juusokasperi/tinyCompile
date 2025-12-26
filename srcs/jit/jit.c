@@ -21,7 +21,7 @@ const X86Reg arg_registers[6] = {
 /* Strict policy; allocate only Callee-Saved registers. */
 static bool is_allocatable_register(int reg)
 {
-	if (reg == REG_RAX || (reg >= 12 && reg <= 15))
+	if (reg == REG_RBX || (reg >= 12 && reg <= 15))
     	return (true);
 	return (false);
 }
@@ -46,7 +46,9 @@ Location get_location(JITContext *ctx, size_t vreg)
 
 	// If no space on registers, allocate to stack
 	ctx->vreg_map[vreg].type = LOC_STACK;
-	ctx->vreg_map[vreg].offset = -((int32_t)(vreg + 1) * 8);
+	// Place locals below the callee-saved spill area (rbp - CALLEE_SAVED_SIZE)
+	// and below the fixed 8-byte pad used to restore 16-byte alignment for calls.
+	ctx->vreg_map[vreg].offset = -(CALLEE_SAVED_SIZE + 8 + (int32_t)(vreg + 1) * 8);
 	return (ctx->vreg_map[vreg]);
 }
 
@@ -76,6 +78,7 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 {
 	uint8_t	*curr = buf;
 	size_t	size = 0;
+	const size_t align_pad = 8;
 
 	// 1. Standard prologue (Push RBP, move RBP, sub RSP)
 	emit_push(&curr, &size, REG_RBP);
@@ -89,12 +92,14 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 	emit_push(&curr, &size, 15);
 
 	// 3. Allocate stack for locals
-	if (stack_size > 0)
+	// Always reserve align_pad so that RSP is 16-byte aligned before any CALL
+	size_t total_stack = stack_size + align_pad;
+	if (total_stack > 0)
 	{
 		emit_u8(&curr, &size, REX_W);
-        emit_u8(&curr, &size, ALU_IMM);
+		emit_u8(&curr, &size, ALU_IMM);
 		emit_u8(&curr, &size, MOD_REG | (EXT_SUB << 3) | REG_RSP);
-        emit_u32(&curr, &size, (uint32_t)stack_size);
+		emit_u32(&curr, &size, (uint32_t)total_stack);
 	}
 
 	// 4. Handle arguments
@@ -120,7 +125,7 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 				emit_store_local(&curr, &size, REG_RAX, loc.offset);
 			}
 		}
-    }
+	}
 
 	return (size);
 }
@@ -167,24 +172,25 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 		return (result);
 	}
 
-    size_t stack_bytes = (ir_func->vreg_count * 8 + 15) & ~15;
+	// Round locals to 16-byte boundary; align_pad handled inside encode_prologue
+	size_t stack_bytes = (ir_func->vreg_count * 8 + 15) & ~15;
 
 	// == PASS 1: Calculate size ===
-    size_t predicted_size = encode_prologue(NULL, stack_bytes, param_count, ctx);
-    IRChunk *chunk = ir_func->head;
+	size_t predicted_size = encode_prologue(NULL, stack_bytes, param_count, ctx);
+	IRChunk *chunk = ir_func->head;
 	size_t instruction_count = 0;
-    while (chunk)
+	while (chunk)
 	{
-        for (size_t i = 0; i < chunk->count; ++i)
+		for (size_t i = 0; i < chunk->count; ++i)
 		{
-            predicted_size += encode_inst(NULL, &chunk->instructions[i], ctx);
+			predicted_size += encode_inst(NULL, &chunk->instructions[i], ctx);
 			instruction_count++;
 		}
-        chunk = chunk->next;
-    }
+		chunk = chunk->next;
+	}
 
 	assert(instruction_count == ir_func->total_count && "IR instruction count mismatch");
-	
+
 	// === Allocate ===
 	result.code = arena_alloc_aligned(ctx->exec_arena, predicted_size, 16);
     if (!result.code)
@@ -198,7 +204,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	uint8_t *write_ptr = result.code;
 	size_t prologue_size = encode_prologue(write_ptr, stack_bytes, param_count, ctx);
 	write_ptr += prologue_size;
-    
+
     chunk = ir_func->head;
     while (chunk)
 	{
@@ -219,7 +225,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 				abort();
 			}
 		}
-        chunk = chunk->next;	
+        chunk = chunk->next;
     }
 
 	// === Verify size match ===
@@ -282,14 +288,14 @@ bool jit_link_all(JITContext *ctx, ErrorContext *errors)
 			success = false;
 			continue;
 		}
-		
+
 		uint64_t addr = (uint64_t)target_addr;
 		memcpy(site->patch_location, &addr, 8);
 	}
 	return (success);
 }
 
-bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx, 
+bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
 					ErrorContext *errors)
 {
 	for (size_t i = 0; i < comp_ctx->count; ++i)
