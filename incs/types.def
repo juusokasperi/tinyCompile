@@ -1,0 +1,35 @@
+/* 
+ * types.def - X-Macro Definition for Data Types
+ * 
+ * Usage:
+ *   #define X_TYPE(enum_name, str_name, size, is_signed)
+ *   #include "types.def"
+ *   #undef X_TYPE
+ * 
+ * Parameters:
+ *   enum_name  - Enum constant (e.g., TYPE_INT64)
+ *   str_name   - String representation (e.g., "int64")
+ *   size       - Size in bytes (e.g., 8)
+ *   is_signed  - true if signed, false if unsigned
+*/
+
+X_TYPE(TYPE_VOID,		"void",		0,		false)
+
+X_TYPE(TYPE_INT64,		"int64",	8,		true)
+X_TYPE(TYPE_INT32,		"int32",	4,		true)
+X_TYPE(TYPE_INT16,		"int16",	2,		true)
+X_TYPE(TYPE_INT8,		"int8",		1,		true)
+
+X_TYPE(TYPE_UINT64,		"uint64",	8,		false)
+X_TYPE(TYPE_UINT32,		"uint32",	4,		false)
+X_TYPE(TYPE_UINT16,		"uint16",	2,		false)
+X_TYPE(TYPE_UINT8,		"uint8",	1,		false)
+
+X_TYPE(TYPE_CHAR,		"char",		1,		true)
+X_TYPE(TYPE_BOOL,		"bool",		1,		false)
+
+/* To do
+X_TYPE(TYPE_FLOAT,		"float",	4,		true)
+X_TYPE(TYPE_DOUBLE,		"double",	8,		true)
+X_TYPE(TYPE_PTR,		"ptr",		8,		false)
+*/

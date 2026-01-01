@@ -106,7 +106,7 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 	// 4. Handle arguments
 	for (size_t i = 0; i < param_count; ++i)
 	{
-		Location loc = get_location(ctx, i);
+		Location loc = get_location(ctx, i + 1);
 		if (i < 6)
 		{
 			X86Reg src_reg = arg_registers[i];
@@ -316,7 +316,7 @@ bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
 				continue;
 			printf("  :: compiling symbol '%.*s'\n", (int)func->function.name.len, func->function.name.start);
 
-			IRFunction *ir = ir_gen(jit_ctx->data_arena, func);
+			IRFunction *ir = ir_gen(jit_ctx->data_arena, func, errors, unit->file.name);
 			if (!ir)
 			{
 				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);
