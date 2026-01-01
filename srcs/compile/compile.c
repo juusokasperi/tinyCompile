@@ -68,7 +68,14 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
 		return (false);
 	}
 	file.name = filepath;
-	resource_track_mmap(resources, (void *)file.data, file.length);
+	if (!resource_track_mmap(resources, (void *)file.data, file.length))
+	{
+		error_fatal(ctx->errors, filepath, 0, 0,
+				"Resource tracker full (capacity %zu)\n",
+				resources->capacity);
+		return (false);
+	}
+
 	ctx->units[ctx->count] = (CompilationUnit){
 		.file = file,
 		.ast = NULL,
