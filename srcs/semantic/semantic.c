@@ -78,6 +78,7 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 	{
 		case AST_NUMBER:
 			node->value_type = TYPE_INT64;		// TODO For now all are int64..
+												// Add literal suffixes (L, UL, etc)
 			return (true);
 		case AST_IDENTIFIER:
 		{
@@ -137,6 +138,7 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 				if (!analyze_expression(sa, node->call.args[i]))
 					all_ok = false;
 				// TODO	Check type compatibility with param
+				// if (node->call.args[i]->value_type != func->params[i].type) ...
 			}
 			node->value_type = func->return_type;
 			return (all_ok);
@@ -167,7 +169,8 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 		{
 			bool left_ok = analyze_expression(sa, node->binary.left);
 			bool right_ok = analyze_expression(sa, node->binary.right);
-			node->value_type = TYPE_INT64;	// TODO For now just int64..
+			node->value_type = TYPE_INT64;	// TODO Comparisons always return bool
+											//		Represented as int64 for now
 			return (left_ok && right_ok);
 		}
 		case AST_NEGATE:
@@ -203,6 +206,7 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 			{
 				init_ok = analyze_expression(sa, node->var_decl.initializer);
 				// TODO Check type compatibility
+				//		if (node->var_decl.var_type != node->var_decl.initializer->value_type)
 			}
 			bool decl_ok = semantic_scope_declare(sa, node->var_decl.var_name,
 					node->var_decl.var_type, node->line);
@@ -428,7 +432,7 @@ bool semantic_analyze(Arena *a, CompilationUnit *unit, ErrorContext *errors, Glo
 		.filename = unit->file.name,
 		.global = global,
 		.current = NULL,
-		.current_return_type = TYPE_INT64,
+		.current_return_type = TYPE_INT64,	// TODO
 	};
 
 	bool all_ok = true;
