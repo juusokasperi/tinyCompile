@@ -22,7 +22,7 @@ DIR_COMPILE = compile/
 SRCS_IR = ir_gen.c ir_print.c ir_symboltable.c
 DIR_IR = ir/
 
-SRCS_JIT = jit.c emit.c encoders.c
+SRCS_JIT = jit.c emit.c encoders.c helpers.c
 DIR_JIT = jit/
 
 SRCS = main.c utils.c

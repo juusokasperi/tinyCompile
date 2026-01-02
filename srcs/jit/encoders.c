@@ -13,40 +13,10 @@ static void	patch_jump_offset(uint8_t *loc, uint8_t *target)
 	memcpy(loc, &rel, sizeof(int32_t));
 }
 
+/* --- Locals are below RBP, callee-saved registers and 8-byte alignment pad -- */
 static inline int32_t	get_local_offset(size_t idx)
 {
-	return (-(CALLEE_SAVED_SIZE + 8 + (int32_t)(idx + 1) * 8));
-}
-
-/* --- Private Helper for Standard ALU Ops --- */
-static inline size_t		emit_bin_op_std(uint8_t *buf, IRInstruction *inst,
-				JITContext *ctx, X86Opcode opcode)
-{
-	uint8_t	*curr = buf;
-	size_t	size = 0;
-
-	Location dest = get_location(ctx, inst->dest);
-	Location src_1 = get_location(ctx, inst->src_1);
-	Location src_2 = get_location(ctx, inst->src_2);
-
-	X86Reg working_reg = REG_RAX;
-	if (src_1.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, working_reg, src_1.reg);
-	else
-		emit_load_param(&curr, &size, working_reg, src_1.offset);
-	if (src_2.type == LOC_REG)
-		emit_alu(&curr, &size, opcode, working_reg, src_2.reg);
-	else
-	{
-		emit_load_param(&curr, &size, REG_RDX, src_2.offset);
-		emit_alu(&curr, &size, opcode, working_reg, REG_RDX);
-	}
-	if (dest.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, working_reg);
-	else
-		emit_store_local(&curr, &size, working_reg, dest.offset);
-
-	return (size);
+	return (-(CALLEE_SAVED_SIZE + WORD_SIZE + (int32_t)(idx + 1) * WORD_SIZE));
 }
 
 static inline size_t emit_jump(uint8_t *buf, size_t label_id, JITContext *ctx, uint8_t opcode)
@@ -91,7 +61,7 @@ static inline void	emit_jz_jnz(uint8_t **buf, size_t *size, JITContext *ctx, IRI
 		emit_test(buf, size, src.reg, src.reg);
 	else
 	{
-		emit_load_param(buf, size, REG_RAX, src.offset);
+		load_location_to_reg(buf, size, REG_RAX, src);
 		emit_u8(buf, size, REX_W);
 		emit_u8(buf, size, ALU_IMM8);
 		emit_u8(buf, size, MOD_REG | (EXT_CMP << 3) | REG_RAX);
@@ -113,60 +83,29 @@ size_t encode_mov(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 
 	if (dest.type == LOC_REG && src.type == LOC_REG && dest.reg == src.reg)
 		return (0);
-	if (dest.type == LOC_REG && src.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, src.reg);
-	else if (dest.type == LOC_REG && src.type == LOC_STACK)
-		emit_load_param(&curr, &size, dest.reg, src.offset);
-	else if (dest.type == LOC_STACK && src.type == LOC_REG)
-		emit_store_local(&curr, &size, src.reg, dest.offset);
-	else
-	{
-		emit_load_param(&curr, &size, REG_RAX, src.offset);
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
-	}
+	load_location_to_reg(&curr, &size, REG_RAX, src);
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
 
 	return (size);
 }
 
 size_t	encode_cmp(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
-	(void)ctx;
 	(void)cnt;
-	uint8_t	*curr = buf;
-	size_t	size = 0;
-	Location dest = get_location(ctx, inst->dest);
-	Location src_1 = get_location(ctx, inst->src_1);
-	Location src_2 = get_location(ctx, inst->src_2);
-	X86Condition cc = CC_E;
+	X86Condition cc;
 
-	if (src_1.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, REG_RAX, src_1.reg);
-	else
-		emit_load_param(&curr, &size, REG_RAX, src_1.offset);
-
-	X86Reg operand = REG_RCX;
-	if (src_2.type == LOC_REG)
-		operand = src_2.reg;
-	else
-		emit_load_param(&curr, &size, REG_RCX, src_2.offset);
-	emit_cmp(&curr, &size, REG_RAX, operand);
 	switch (inst->opcode)
 	{
-		case IR_EQ:		cc = CC_E; break;
-		case IR_NEQ:	cc = CC_NE; break;
-		case IR_LT:		cc = CC_L; break;
-		case IR_LE:		cc = CC_LE; break;
-		case IR_GT:		cc = CC_G; break;
-		case IR_GE:		cc = CC_GE; break;
-		default: break;
+		case IR_EQ:		cc = CC_E;	break;
+		case IR_NEQ:	cc = CC_NE;	break;
+		case IR_LT:		cc = CC_L;	break;
+		case IR_LE:		cc = CC_LE;	break;
+		case IR_GT:		cc = CC_G;	break;
+		case IR_GE:		cc = CC_GE;	break;
+		default:		cc = CC_E;	break;
 	}
-	emit_setcc(&curr, &size, cc, REG_RAX);
-	emit_movzx(&curr, &size, REG_RAX, REG_RAX);
-	if (dest.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
-	else
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
-	return (size);
+
+	return emit_comparison_op(buf, inst, ctx, cc);
 }
 
 size_t	encode_jmp(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
@@ -227,28 +166,26 @@ size_t encode_label(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *
 size_t	encode_const(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;
-	uint8_t	*curr = buf;
-	size_t	size = 0;
+	uint8_t		*curr = buf;
+	size_t		size = 0;
 	Location	dest = get_location(ctx, inst->dest);
 
 	emit_mov_imm(&curr, &size, REG_RAX, inst->imm);
-	if (dest.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
-	else
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
+
 	return (size);
 }
 
 size_t	encode_add(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;
-	return (emit_bin_op_std(buf, inst, ctx, ALU_ADD));
+	return (emit_standard_binary_op(buf, inst, ctx, ALU_ADD));
 }
 
 size_t	encode_sub(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;
-	return (emit_bin_op_std(buf, inst, ctx, ALU_SUB));
+	return (emit_standard_binary_op(buf, inst, ctx, ALU_SUB));
 }
 
 size_t	encode_mul(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
@@ -260,21 +197,12 @@ size_t	encode_mul(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	Location	src_1 = get_location(ctx,inst->src_1);
 	Location	src_2 = get_location(ctx, inst->src_2);
 
-	if (src_1.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, REG_RAX, src_1.reg);
-	else
-		emit_load_param(&curr, &size, REG_RAX, src_1.offset);
+	X86Reg		right_reg;
+	load_binary_operands(&curr, &size, REG_RAX, REG_RCX, src_1, src_2, &right_reg);
+	
+	emit_imul_r64(&curr, &size, REG_RAX, right_reg);
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
 
-	X86Reg operand = REG_RCX;
-	if (src_2.type == LOC_REG)
-		operand = src_2.reg;
-	else
-		emit_load_param(&curr, &size, REG_RCX, src_2.offset);
-	emit_imul_r64(&curr, &size, REG_RAX, operand);
-	if (dest.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
-	else
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
 	return (size);
 }
 
@@ -287,10 +215,7 @@ size_t	encode_div(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	Location	src_1 = get_location(ctx, inst->src_1);
 	Location	src_2 = get_location(ctx, inst->src_2);
 
-	if (src_1.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, REG_RAX, src_1.reg);
-	else
-		emit_load_param(&curr, &size, REG_RAX, src_1.offset);
+	load_location_to_reg(&curr, &size, REG_RAX, src_1);
 
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, OP_CQO);
@@ -299,7 +224,7 @@ size_t	encode_div(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	if (src_2.type == LOC_REG)
 		divisor = src_2.reg;
 	else
-		emit_load_param(&curr, &size, REG_RCX, src_2.offset);
+		load_location_to_reg(&curr, &size, REG_RCX, src_2);
 
 	uint8_t rex = REX_W;
 	if (divisor >= 8)
@@ -308,57 +233,49 @@ size_t	encode_div(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	emit_u8(&curr, &size, OP_IDIV);
 	emit_u8(&curr, &size, MOD_REG | (EXT_IDIV << 3) | (divisor & 7));
 
-	if (dest.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
-	else
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
+
 	return (size);
 }
 
 size_t encode_neg(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;
-	uint8_t	*curr = buf;
-	size_t	size = 0;
-	Location dest = get_location(ctx, inst->dest);
-	Location src = get_location(ctx, inst->src_1);
+	uint8_t		*curr = buf;
+	size_t		size = 0;
+	Location	dest = get_location(ctx, inst->dest);
+	Location	src = get_location(ctx, inst->src_1);
 
-	if (src.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, REG_RAX, src.reg);
-	else
-		emit_load_param(&curr, &size, REG_RAX, src.offset);
+	load_location_to_reg(&curr, &size, REG_RAX, src);
+
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, OP_IDIV);
 	emit_u8(&curr, &size, MOD_REG | (EXT_NEG << 3) | REG_RAX);
-	if (dest.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
-	else
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
+
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
 	return (size);
 }
 
 size_t encode_not(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;
-	uint8_t	*curr = buf;
-	size_t	size = 0;
-	Location dest = get_location(ctx, inst->dest);
-	Location src = get_location(ctx, inst->src_1);
+	uint8_t		*curr = buf;
+	size_t		size = 0;
+	Location	dest = get_location(ctx, inst->dest);
+	Location	src = get_location(ctx, inst->src_1);
 
-	if (src.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, REG_RAX, src.reg);
-	else
-		emit_load_param(&curr, &size, REG_RAX, src.offset);
+	load_location_to_reg(&curr, &size, REG_RAX, src);
+
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, ALU_IMM8);
 	emit_u8(&curr, &size, MOD_REG | (EXT_CMP << 3) | REG_RAX);
 	emit_u8(&curr, &size, 0x00);
+
 	emit_setcc(&curr, &size, CC_E, REG_RAX);
 	emit_movzx(&curr, &size, REG_RAX, REG_RAX);
-	if (dest.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
-	else
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
+
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
+
 	return (size);
 }
 
@@ -366,9 +283,10 @@ size_t encode_arg(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 {
 	(void)buf;
 	(void)cnt;
-	PendingCall *pc = &ctx->pending_call;
 
+	PendingCall *pc = &ctx->pending_call;
 	pc->arg_vregs[pc->count++] = inst->src_1;
+
 	return (0);
 }
 
@@ -382,8 +300,10 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	CallSiteList	*cs = &ctx->call_sites;
 
 	// 1. Calculate stack arguments
-	size_t	stack_args = (pc->count > 6) ? (pc->count - 6) : 0;
-	size_t	reg_args = (pc->count > 6) ? 6 : pc->count;
+	size_t	stack_args = (pc->count > SYS_V_MAX_REG_ARGS) 
+			? (pc->count - SYS_V_MAX_REG_ARGS) : 0;
+	size_t	reg_args = (pc->count > SYS_V_MAX_REG_ARGS)
+			? SYS_V_MAX_REG_ARGS : pc->count;
 
 	// 2. Apply alignment first before pushing
 	bool	needs_alignment = (stack_args % 2) != 0;
@@ -400,24 +320,21 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	{
 		size_t	idx = i - 1;
 		Location loc = get_location(ctx, pc->arg_vregs[idx]);
-		if (loc.type == LOC_REG)
-			emit_mov_reg_reg(&curr, &size, REG_RAX, loc.reg);
-		else
-			emit_load_param(&curr, &size, REG_RAX, loc.offset);
+		load_location_to_reg(&curr, &size, REG_RAX, loc);
 		emit_push(&curr, &size, REG_RAX);
 	}
 
 	// 4. Handle register args
 	//	  a. Push params to stack
-	for (int i = (int)reg_args; i > 0; --i)
+	for (int i = (int)reg_args - 1; i >= 0; --i)
 	{
-		int idx = i - 1;
-		Location loc = get_location(ctx, pc->arg_vregs[idx]);
+		Location loc = get_location(ctx, pc->arg_vregs[i]);
+
 		if (loc.type == LOC_REG)
 			emit_push(&curr, &size, loc.reg);
 		else
 		{
-			emit_load_param(&curr, &size, REG_RAX, loc.offset);
+			load_location_to_reg(&curr, &size, REG_RAX, loc);
 			emit_push(&curr, &size, REG_RAX);
 		}
 	}
@@ -428,6 +345,8 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	// 5. Emit call
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, MOV_IMM_R + REG_RAX);
+
+	// 6. Record call site for linking
 	if (cs && buf)
 	{
 		CallSite site = {
@@ -450,10 +369,8 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 		emit_u8(&curr, &size, MOD_REG | (EXT_ADD << 3) | REG_RSP);
 		emit_u32(&curr, &size, cleanup);
 	}
-	if (dest.type == LOC_REG)
-		emit_mov_reg_reg(&curr, &size, dest.reg, REG_RAX);
-	else
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
+
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
 	pc->count = 0;
 	return (size);
 }
@@ -461,29 +378,30 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 size_t encode_ret(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;
-	uint8_t	*curr = buf;
-	size_t	size = 0;
-	Location src = get_location(ctx, inst->src_1);
+	uint8_t		*curr = buf;
+	size_t		size = 0;
+	Location	src = get_location(ctx, inst->src_1);
 
-	if (src.type == LOC_REG)
-	{
-		if (src.reg != REG_RAX)
-			emit_mov_reg_reg(&curr, &size, REG_RAX, src.reg);
-	}
-	else
-		emit_load_param(&curr, &size, REG_RAX, src.offset);
+	// Load return value to RAX
+	load_location_to_reg(&curr, &size, REG_RAX, src);
+
+	// Restore stack pointer
 	emit_u8(&curr, &size, REX_W);
 	emit_u8(&curr, &size, OP_LEA);
 	emit_u8(&curr, &size, MOD_MEM_DISP8 | (REG_RSP << 3) | REG_RBP);
 	emit_u8(&curr, &size, (uint8_t)(-CALLEE_SAVED_SIZE));
+
+	// Restore callee-saved registers
 	emit_pop(&curr, &size, REG_R15);
 	emit_pop(&curr, &size, REG_R14);
 	emit_pop(&curr, &size, REG_R13);
 	emit_pop(&curr, &size, REG_R12);
 	emit_pop(&curr, &size, REG_RBX);
 
+	// Restore base pointer and return
 	emit_pop(&curr, &size, REG_RBP);
 	emit_u8(&curr, &size, OP_RET);
+
 	return (size);
 }
 
@@ -501,9 +419,10 @@ size_t encode_store(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *
 		emit_store_local(&curr, &size, src.reg, offset);
 	else
 	{
-		emit_load_param(&curr, &size, REG_RAX, src.offset);
+		load_location_to_reg(&curr, &size, REG_RAX, src);
 		emit_store_local(&curr, &size, REG_RAX, offset);
 	}
+
 	return (size);
 }
 
@@ -522,7 +441,7 @@ size_t encode_load(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	else
 	{
 		emit_load_param(&curr, &size, REG_RAX, offset);
-		emit_store_local(&curr, &size, REG_RAX, dest.offset);
+		store_reg_to_location(&curr, &size, dest, REG_RAX);
 	}
 	return (size);
 }
