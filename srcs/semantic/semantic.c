@@ -1,9 +1,12 @@
 #include "semantic.h"
 #include "ast.h"
+#include "ir.h"
 #include "compile.h"
 #include "defines.h"
 #include "error_handler.h"
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 
 Scope *semantic_scope_enter(SemanticAnalyzer *sa)
@@ -11,6 +14,7 @@ Scope *semantic_scope_enter(SemanticAnalyzer *sa)
 	Scope *new_scope = arena_alloc(sa->arena, sizeof(Scope));
 	new_scope->parent = sa->current;
 	new_scope->var_count = 0;
+	memset(new_scope->entries, 0, sizeof(new_scope->entries));
 	sa->current = new_scope;
 	return (new_scope);
 }
@@ -23,12 +27,19 @@ void semantic_scope_exit(SemanticAnalyzer *sa)
 
 VarInfo *semantic_scope_lookup(Scope *scope, StringView name)
 {
+	uint32_t	idx;
+	size_t		curr;
+
 	while (scope)
 	{
-		for (size_t i = 0; i < scope->var_count; ++i)
+		idx = hash_sv(name) & (SCOPE_HASH_SIZE - 1);
+		for (size_t i = 0; i < SCOPE_HASH_SIZE; ++i)
 		{
-			if (sv_eq(scope->vars[i].name, name))
-				return (&scope->vars[i]);
+			curr = (idx + i) & (SCOPE_HASH_SIZE - 1);
+			if (!scope->entries[curr].occupied)
+				break;
+			if (sv_eq(scope->entries[curr].info.name, name))
+				return (&scope->entries[curr].info);
 		}
 		scope = scope->parent;
 	}
@@ -38,36 +49,41 @@ VarInfo *semantic_scope_lookup(Scope *scope, StringView name)
 bool semantic_scope_declare(SemanticAnalyzer *sa, StringView name, 
 							DataType type, int line)
 {
+	uint32_t	idx;
+	size_t		curr;
+
 	Scope *scope = sa->current;
 	if (!scope)
 		return (false);
 
-	for (size_t i = 0; i < scope->var_count; ++i)
+	idx = hash_sv(name) & (SCOPE_HASH_SIZE - 1);
+	for (size_t i = 0; i < SCOPE_HASH_SIZE; ++i)
 	{
-		if (sv_eq(scope->vars[i].name, name))
+		curr = (idx + i) & (SCOPE_HASH_SIZE - 1);
+		if (!scope->entries[curr].occupied)
+		{
+			scope->entries[curr].occupied = true;
+			scope->entries[curr].info = (VarInfo){
+				.name = name,
+				.type = type,
+				.initialized = false,
+				.line = line
+			};
+			scope->var_count++;
+			return (true);
+		}
+		if (sv_eq(scope->entries[curr].info.name, name))
 		{
 			error_semantic(sa->errors, sa->filename, line, 0,
 					"redeclaration of variable '%.*s' (first declared at line %d)",
-					(int)name.len, name.start, scope->vars[i].line);
+					(int)name.len, name.start, scope->entries[curr].info.line);
 			return (false);
 		}
 	}
 
-	if (scope->var_count >= MAX_VARS_PER_SCOPE)
-	{
-		error_semantic(sa->errors, sa->filename, line, 0,
-				"too many variables in scope (max %d)", MAX_VARS_PER_SCOPE);
-		return (false);
-	}
-
-	scope->vars[scope->var_count] = (VarInfo){
-		.name = name,
-		.type = type,
-		.initialized = false,
-		.line = line
-	};
-	scope->var_count++;
-	return (true);
+	error_semantic(sa->errors, sa->filename, line, 0,
+			"too many variables in scope (max %d)", SCOPE_HASH_SIZE);
+	return (false);
 }
 
 /*
