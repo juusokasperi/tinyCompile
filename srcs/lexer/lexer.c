@@ -91,6 +91,11 @@ Token lexer_next(Lexer *l)
 				return (lexer_make_token_no_sv(l, TOKEN_LSHIFT));
 			}
 			return (lexer_make_token_no_sv(l, TOKEN_LESS));
+		// TODO Logical && and ||
+		case '&': return (lexer_make_token(l, TOKEN_BIT_AND, text));
+		case '|': return (lexer_make_token(l, TOKEN_BIT_OR, text));
+		case '^': return (lexer_make_token(l, TOKEN_BIT_XOR, text));
+		case '~': return (lexer_make_token(l, TOKEN_BIT_NOT, text));
 		default:  return (lexer_make_token_no_sv(l, TOKEN_ERROR));
 	}
 }

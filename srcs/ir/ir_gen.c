@@ -118,7 +118,17 @@ static size_t gen_unary(Arena *a, IRFunction *f, ASTNode *node, SymbolTable *sym
 		return (0);
 	if (!ir_alloc_vreg(f, &dest))
 		return (0);
-	op = (node->type == AST_NOT) ? IR_NOT : IR_NEG;
+	switch (node->type)
+	{
+		case AST_NEGATE:		op = IR_NEG; break;
+		case AST_NOT:			op = IR_NOT; break;
+		case AST_BIT_NOT:		op = IR_BNOT; break;
+		default:
+			error_add(f->errors, ERROR_CODEGEN, ERROR_LEVEL_ERROR,
+					f->filename, node->line, node->column,
+					"unknown unary operator");
+			return (0);
+	}
 	emit(a, f, (IRInstruction){
 			.opcode = op,
 			.type = node->value_type,
@@ -160,14 +170,14 @@ static size_t gen_binary_op(Arena *a, IRFunction *f, ASTNode *node, SymbolTable 
 			else
 				op = IR_RSHIFT;
 			break;
-		case AST_BIT_AND:
-		case AST_BIT_NOT:
-		case AST_BIT_OR:
-		case AST_BIT_XOR:
-								fprintf(stderr, 
-										"Internal error: " \
-										"Bitwise NOT yet implemented\n");
-		default:				op = IR_ADD; break;
+		case AST_BIT_AND:		op = IR_BAND; break;
+		case AST_BIT_OR:		op = IR_BOR; break;
+		case AST_BIT_XOR:		op = IR_BXOR; break;
+		default:
+			error_add(f->errors, ERROR_CODEGEN, ERROR_LEVEL_ERROR,
+					f->filename, node->line, node->column,
+					"unknown binary operator");
+			return (0);
 	}
 	IRInstruction inst = {
 		.opcode = op,
@@ -195,6 +205,7 @@ static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable
 			return (gen_call(a, f, node, symbol_table));
 		case AST_NEGATE:
 		case AST_NOT:
+		case AST_BIT_NOT:
 			return (gen_unary(a, f, node, symbol_table));
 		case AST_ADD:
 		case AST_SUB:
@@ -208,15 +219,10 @@ static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable
 		case AST_GREATER_EQUAL:
 		case AST_LSHIFT:
 		case AST_RSHIFT:
-			return (gen_binary_op(a, f, node, symbol_table));
 		case AST_BIT_AND:
-		case AST_BIT_NOT:
 		case AST_BIT_OR:
 		case AST_BIT_XOR:
-			error_add(f->errors, ERROR_CODEGEN, ERROR_LEVEL_ERROR,
-					f->filename, node->line, node->column,
-					"bitwise NOT yet implemented");
-			return (0);
+			return (gen_binary_op(a, f, node, symbol_table));
 		case AST_VAR_DECL:
 		case AST_ASSIGNMENT:
 		case AST_RETURN:

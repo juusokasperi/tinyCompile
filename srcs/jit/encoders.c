@@ -256,6 +256,45 @@ size_t encode_neg(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ct
 	return (size);
 }
 
+size_t encode_and(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;
+	return (emit_standard_binary_op(buf, inst, ctx, ALU_AND));
+}
+
+size_t encode_or(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;
+	return (emit_standard_binary_op(buf, inst, ctx, ALU_OR));
+}
+
+size_t encode_xor(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;	
+	return (emit_standard_binary_op(buf, inst, ctx, ALU_XOR));
+}
+
+size_t encode_not_bitwise(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;
+	uint8_t		*curr = buf;
+	size_t		size = 0;
+	Location	dest = get_location(ctx, inst->dest);
+	Location	src = get_location(ctx, inst->src_1);
+
+	// Load operand into RAX
+	load_location_to_reg(&curr, &size, REG_RAX, src);
+	// Emit NOT r/m64
+	emit_u8(&curr, &size, REX_W);
+	emit_u8(&curr, &size, OP_GRP3);
+	emit_u8(&curr, &size, MOD_REG | (EXT_NOT << 3) | REG_RAX);
+
+	// Store result
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
+
+	return (size);
+}
+
 size_t encode_not(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
 {
 	(void)cnt;

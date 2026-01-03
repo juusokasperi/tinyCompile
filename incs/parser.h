@@ -14,6 +14,11 @@ typedef enum {
 	PREC_ASSIGNMENT,	// =
 	PREC_OR,			// ||
 	PREC_AND,			// &&
+						//
+	PREC_BIT_OR,		// |
+	PREC_BIT_XOR,		// ^
+	PREC_BIT_AND,		// &
+						//
 	PREC_EQUALITY,		// == =!
 	PREC_COMPARISON,	// < > <= >=
 	PREC_SHIFT,			// << >>

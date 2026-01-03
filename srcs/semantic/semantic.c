@@ -187,6 +187,28 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 			 node->value_type = TYPE_INT64;
 			 return (ok);
 		}
+		case AST_BIT_NOT:
+		{
+			bool ok = analyze_expression(sa, node->unary.operand);
+			if (ok)
+				node->value_type = node->unary.operand->value_type;
+			return (ok);
+		}
+		case AST_BIT_AND:
+		case AST_BIT_OR:
+		case AST_BIT_XOR:
+		case AST_LSHIFT:
+		case AST_RSHIFT:
+		{
+			bool left_ok = analyze_expression(sa, node->binary.left);
+			bool right_ok = analyze_expression(sa, node->binary.right);
+			if (!left_ok || !right_ok)
+				return (false);
+
+			// Bitwise operations usually take the type of the left operand
+			node->value_type = node->binary.left->value_type;
+			return (true);
+		}
 		default:
 			return (true);
 	}

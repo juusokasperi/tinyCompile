@@ -37,6 +37,12 @@ X_TOKEN(TOKEN_BANG,			"!",        false,		PREC_NONE,		parse_unary,	NULL,		  NULL
 X_TOKEN(TOKEN_LSHIFT,		"<<",		false,		PREC_SHIFT,		NULL,			parse_binary, NULL)
 X_TOKEN(TOKEN_RSHIFT,		">>",		false,		PREC_SHIFT,		NULL,			parse_binary, NULL)
 
+// Bitwise logic
+X_TOKEN(TOKEN_BIT_AND,		"&",		false,		PREC_BIT_AND,	NULL,			parse_binary, NULL)
+X_TOKEN(TOKEN_BIT_XOR,		"^",		false,		PREC_BIT_XOR,	NULL,			parse_binary, NULL)
+X_TOKEN(TOKEN_BIT_OR,		"|",		false,		PREC_BIT_OR,	NULL,			parse_binary, NULL)
+X_TOKEN(TOKEN_BIT_NOT,		"~",		false,		PREC_NONE,		parse_unary,	NULL,		  NULL)
+
 // Comparisons
 X_TOKEN(TOKEN_EQUAL_EQUAL,	"==",      false,		PREC_EQUALITY,		NULL,	parse_binary,	NULL)
 X_TOKEN(TOKEN_BANG_EQUAL,	"!=",       false,		PREC_EQUALITY,		NULL,	parse_binary,	NULL)

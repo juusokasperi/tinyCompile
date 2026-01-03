@@ -55,6 +55,7 @@ ASTNode	*parse_unary(Parser *parser)
 	{
 		case TOKEN_MINUS:	node->type = AST_NEGATE; break;
 		case TOKEN_BANG:	node->type = AST_NOT; break;
+		case TOKEN_BIT_NOT:	node->type = AST_BIT_NOT; break;
 		default:			node->type = AST_NUMBER; break;
 	}
 
@@ -81,7 +82,12 @@ ASTNode	*parse_binary(Parser *parser, ASTNode *left)
 		case TOKEN_GREATER_EQUAL:	node->type = AST_GREATER_EQUAL; break;
 		case TOKEN_LSHIFT:			node->type = AST_LSHIFT; break;
 		case TOKEN_RSHIFT:			node->type = AST_RSHIFT; break;
-		default: break;
+		case TOKEN_BIT_AND:			node->type = AST_BIT_AND; break;
+		case TOKEN_BIT_OR:			node->type = AST_BIT_OR; break;
+		case TOKEN_BIT_XOR:			node->type = AST_BIT_XOR; break;
+		default: 
+			parser_error(parser, "invalid binary operator");
+			return (NULL);
 	}
 
 	Precedence precedence = get_token_precedence(operator_type);

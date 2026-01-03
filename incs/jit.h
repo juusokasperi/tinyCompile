@@ -72,6 +72,7 @@ typedef enum {
 
 	OP_CQO = 0x99,		// Sign extend (RAX -> RDX)
 	OP_IDIV = 0xF7,		// Integer division
+	OP_GRP3 = 0xF7,
 	OP_IMUL_1 = 0x0F,
 	OP_IMUL_2 = 0xAF,	// 2nd byte of IMUL (1st is 0x0F)
 } X86Opcode;
@@ -86,6 +87,7 @@ typedef enum {
 typedef enum {
 	EXT_ADD = 0,
 	EXT_CALL = 2,
+	EXT_NOT = 2,
 	EXT_NEG = 3,
 	EXT_SHL = 4,	// Shift Left
 	EXT_SHR = 5,	// Logical Shift Right
