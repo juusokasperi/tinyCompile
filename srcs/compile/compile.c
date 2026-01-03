@@ -19,13 +19,13 @@ bool compile_ctx_init(CompilationContext *ctx, Arena *arena,
 	if (file_count < 1)
 	{
 		error_fatal(errors, NULL, 0, 0,
-				"Expected at least 1 source file");
+				"expected at least 1 source file");
 		return (false);
 	}
 	if (file_count > MAX_SOURCE_FILES)
 	{
 		error_fatal(errors, NULL, 0, 0,
-				"Too many files (max %d)", MAX_SOURCE_FILES);
+				"too many files (max %d)", MAX_SOURCE_FILES);
 		return (false);
 	}
 	ctx->capacity = file_count > 0 ? file_count : 8;
@@ -33,7 +33,7 @@ bool compile_ctx_init(CompilationContext *ctx, Arena *arena,
 	if (!ctx->units)
 	{
 		error_fatal(errors, NULL, 0, 0,
-				"Failed to allocate compilation units");
+				"failed to allocate compilation units");
 		return (false);
 	}
 	ctx->global.function_count = 0;
@@ -45,7 +45,7 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
 {
 	if (ctx->count >= ctx->capacity)
 	{
-		error_fatal(ctx->errors, NULL, 0, 0, "Internal error: compilation unit overflow");
+		error_fatal(ctx->errors, NULL, 0, 0, "internal error: compilation unit overflow");
 		return (false);
 	}
 	FileValidation validation;
@@ -56,7 +56,7 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
 	if (fd == -1)
 	{
 		error_fatal(ctx->errors, filepath, 0, 0,
-				"Failed to open file: %s", strerror(errno));
+				"failed to open file: %s", strerror(errno));
 		return (false);
 	}
 
@@ -64,11 +64,18 @@ bool compile_ctx_add_file(CompilationContext *ctx, const char *filepath,
 	if (!file.data)
 	{
 		error_fatal(ctx->errors, filepath, 0, 0,
-				"Failed to map file into memory: %s", strerror(errno));
+				"failed to map file into memory: %s", strerror(errno));
 		return (false);
 	}
 	file.name = filepath;
-	resource_track_mmap(resources, (void *)file.data, file.length);
+	if (!resource_track_mmap(resources, (void *)file.data, file.length))
+	{
+		error_fatal(ctx->errors, filepath, 0, 0,
+				"resource tracker full (capacity %zu)",
+				resources->capacity);
+		return (false);
+	}
+
 	ctx->units[ctx->count] = (CompilationUnit){
 		.file = file,
 		.ast = NULL,
@@ -93,10 +100,7 @@ bool compile_parse_all(CompilationContext *ctx)
 		unit->ast = parser_parse(&lexer, ctx->arena, ctx->errors);
 		unit->parsed_ok = (unit->ast != NULL);
 		if (!unit->parsed_ok)
-		{
-			error_parser(ctx->errors, unit->file.name, 0, 0, "Parse failed");
 			all_ok = false;
-		}
 	}
 
 	return (all_ok);
@@ -155,6 +159,6 @@ ASTNode *compile_get_entry_point(CompilationContext *ctx)
 		}
 	}
 
-	error_fatal(ctx->errors, NULL, 0, 0, "No main() function found");
+	error_fatal(ctx->errors, NULL, 0, 0, "no main() function found");
 	return (NULL);
 }

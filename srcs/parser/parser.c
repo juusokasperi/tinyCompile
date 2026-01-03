@@ -26,15 +26,15 @@ ASTNode	*parser_parse(Lexer *lexer, Arena *arena, ErrorContext *errors)
 	{
 		if (count >= MAX_FUNCTION_COUNT)
 		{
-			parser_error(&parser, "Too many global declarations (max %d)",
+			parser_error(&parser, "too many global declarations (max %d)",
 					MAX_FUNCTION_COUNT);
 			return (NULL);
 		}
-		if (check(&parser, TOKEN_INT))
+		if (is_type_keyword(parser.next.text))
 			declarations[count++] = parse_function(&parser);
 		else
 		{
-			parser_error(&parser, "Expected function declaration.");
+			parser_error(&parser, "expected function declaration.");
 			return (NULL);
 		}
 	}

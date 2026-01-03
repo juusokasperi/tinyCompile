@@ -1,3 +1,4 @@
+#include "ast.h"
 #include "parser_internal.h"
 
 ASTNode	*parse_statement(Parser *parser)
@@ -50,13 +51,15 @@ ASTNode* parse_block(Parser *parser)
 
 ASTNode	*parse_function(Parser *parser)
 {
-	if (!match(parser, TOKEN_INT))
+	DataType return_type = parse_type(parser);
+	if (parser->panic_mode)
 		return (NULL);
 
-	parser_consume(parser, TOKEN_IDENTIFIER, "Expected function name.");
+	parser_consume(parser, TOKEN_IDENTIFIER, "expected function name.");
 	StringView func_name = parser->current.text;
+	int func_line = parser->current.line;
 
-	parser_consume(parser, TOKEN_LPAREN, "Expected '(' after function name.");
+	parser_consume(parser, TOKEN_LPAREN, "expected '(' after function name.");
 
 	Parameter *params = NULL;
 	size_t param_count = 0;
@@ -70,17 +73,17 @@ ASTNode	*parse_function(Parser *parser)
 		{
 			do
 			{
-				parser_consume(parser, TOKEN_INT, "Expected parameter type");
-				parser_consume(parser, TOKEN_IDENTIFIER, "Expected parameter name");
+				DataType param_type = parse_type(parser);
+				parser_consume(parser, TOKEN_IDENTIFIER, "expected parameter name");
 				params[param_count++] = (Parameter){
 					.name = parser->current.text,
-					.type = TYPE_INT64
+					.type = param_type
 				};
 			} while (match(parser, TOKEN_COMMA));
 		}
 	}
 
-	parser_consume(parser, TOKEN_RPAREN, "Expected ')' after parameters.");
+	parser_consume(parser, TOKEN_RPAREN, "expected ')' after parameters.");
 
 	ASTNode *body = NULL;
 	bool is_prototype = false;
@@ -92,8 +95,12 @@ ASTNode	*parse_function(Parser *parser)
 	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_FUNCTION,
+		.value_type = return_type,
+		.line = func_line,
+		.column = parser->current.column,
 		.function = {
 			.name = func_name,
+			.return_type = return_type,
 			.params = params,
 			.param_count = param_count,
 			.body = body,
@@ -105,31 +112,44 @@ ASTNode	*parse_function(Parser *parser)
 
 ASTNode	*parse_var_decl(Parser *parser)
 {
-	parser_consume(parser, TOKEN_INT, "Expected 'int'");
-	parser_consume(parser, TOKEN_IDENTIFIER, "Expected variable name");
+	DataType	var_type = parse_type(parser);
+
+	if (parser->panic_mode)
+		return (NULL);
+	parser_consume(parser, TOKEN_IDENTIFIER, "expected variable name");
 	StringView var_name = parser->current.text;
+	int var_line = parser->current.line;
 	ASTNode *init = NULL;
 	if (match(parser, TOKEN_EQUAL))
 		init = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	parser_consume(parser, TOKEN_SEMICOLON, "expected ';'");
 	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_VAR_DECL,
-		.var_decl = { .var_name = var_name, .initializer = init }
+		.value_type = var_type,
+		.line = var_line,
+		.var_decl = { 
+			.var_name = var_name, 
+			.var_type = var_type,
+			.initializer = init 
+		}
 	};
 	return (node);
 }
 
 ASTNode	*parse_return(Parser *parser)
 {
-	parser_consume(parser, TOKEN_RETURN, "Expected 'return'");
+	parser_consume(parser, TOKEN_RETURN, "expected 'return'");
+	int ret_line = parser->current.line;
 	ASTNode *expr = NULL;
 	if (!check(parser, TOKEN_SEMICOLON))
 		expr = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	parser_consume(parser, TOKEN_SEMICOLON, "expected ';'");
 	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_RETURN,
+		.value_type = TYPE_VOID,
+		.line = ret_line,
 		.return_stmt = { .expression = expr }
 	};
 	return (node);
@@ -137,10 +157,11 @@ ASTNode	*parse_return(Parser *parser)
 
 ASTNode	*parse_if(Parser *parser)
 {
-	parser_consume(parser, TOKEN_IF, "Expected 'if'");
-	parser_consume(parser, TOKEN_LPAREN, "Expected '('");
+	parser_consume(parser, TOKEN_IF, "expected 'if'");
+	int if_line = parser->current.line;
+	parser_consume(parser, TOKEN_LPAREN, "expected '('");
 	ASTNode *condition = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_RPAREN, "Expected ')'");
+	parser_consume(parser, TOKEN_RPAREN, "expected ')'");
 	ASTNode *then_branch = parse_statement(parser);
 	ASTNode *else_branch = NULL;
 	if (match(parser, TOKEN_ELSE))
@@ -148,6 +169,8 @@ ASTNode	*parse_if(Parser *parser)
 	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_IF,
+		.value_type = TYPE_VOID,
+		.line = if_line,
 		.if_stmt = { condition, then_branch, else_branch }
 	};
 	return (node);
@@ -155,14 +178,17 @@ ASTNode	*parse_if(Parser *parser)
 
 ASTNode	*parse_while(Parser *parser)
 {
-	parser_consume(parser, TOKEN_WHILE, "Expected 'while'");
-	parser_consume(parser, TOKEN_LPAREN, "Expected '('");
+	parser_consume(parser, TOKEN_WHILE, "expected 'while'");
+	int while_line = parser->current.line;
+	parser_consume(parser, TOKEN_LPAREN, "expected '('");
 	ASTNode *condition = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_RPAREN, "Expected ')'");
+	parser_consume(parser, TOKEN_RPAREN, "expected ')'");
 	ASTNode *body = parse_statement(parser);
 	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_WHILE,
+		.value_type = TYPE_VOID,
+		.line = while_line,
 		.while_stmt = { condition, body }
 	};
 	return (node);
@@ -171,6 +197,6 @@ ASTNode	*parse_while(Parser *parser)
 ASTNode	*parse_expr_stmt(Parser *parser)
 {
 	ASTNode *expr = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	parser_consume(parser, TOKEN_SEMICOLON, "expected ';'");
 	return (expr);
 }

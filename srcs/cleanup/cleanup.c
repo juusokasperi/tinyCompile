@@ -10,23 +10,28 @@ void	resource_tracker_init(ResourceTracker *tracker, size_t capacity, Arena *a)
 	tracker->files = arena_alloc(tracker->arena, capacity * sizeof(FileResource));
 }
 
-void	resource_track_fd(ResourceTracker *tracker, int fd)
+bool	resource_track_fd(ResourceTracker *tracker, int fd)
 {
-	// TODO improve silent failure
 	if (tracker->count >= tracker->capacity)
-		return;
+	{
+		close(fd);
+		return (false);
+	}
 	tracker->files[tracker->count++] = (FileResource){
 		.fd = fd,
 		.needs_close = true,
 		.needs_munmap = false,
 	};
+	return (true);
 }
 
-void	resource_track_mmap(ResourceTracker *tracker, void *addr, size_t size)
+bool	resource_track_mmap(ResourceTracker *tracker, void *addr, size_t size)
 {
-	// TODO improve silent failure
 	if (tracker->count >= tracker->capacity)
-		return;
+	{
+		munmap(addr, size);
+		return (false);
+	}
 	tracker->files[tracker->count++] = (FileResource){
 		.fd = -1,
 		.addr = addr,
@@ -34,13 +39,17 @@ void	resource_track_mmap(ResourceTracker *tracker, void *addr, size_t size)
 		.needs_close = false,
 		.needs_munmap = true,
 	};
+	return (true);
 }
 
-void	resource_track_file(ResourceTracker *tracker, int fd, void *addr, size_t size)
+bool	resource_track_file(ResourceTracker *tracker, int fd, void *addr, size_t size)
 {
-	// TODO improve silent failure
 	if (tracker->count >= tracker->capacity)
-		return;
+	{
+		close(fd);
+		munmap(addr, size);
+		return (false);
+	}
 	tracker->files[tracker->count++] = (FileResource){
 		.fd = fd,
 		.addr = addr,
@@ -48,6 +57,7 @@ void	resource_track_file(ResourceTracker *tracker, int fd, void *addr, size_t si
 		.needs_close = true,
 		.needs_munmap = true,
 	};
+	return (true);
 }
 
 void	resource_cleanup_all(ResourceTracker *tracker)

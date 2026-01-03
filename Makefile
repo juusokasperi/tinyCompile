@@ -1,7 +1,7 @@
 SRCS_LEXER = lexer.c helpers.c
 DIR_LEXER = lexer/
 
-SRCS_PARSER = parser.c parser_expr.c parser_stmt.c parser_utils.c
+SRCS_PARSER = parser.c parser_expr.c parser_stmt.c parser_utils.c type_helpers.c
 DIR_PARSER = parser/
 
 SRCS_SEMANTIC = semantic.c
@@ -22,7 +22,7 @@ DIR_COMPILE = compile/
 SRCS_IR = ir_gen.c ir_print.c ir_symboltable.c
 DIR_IR = ir/
 
-SRCS_JIT = jit.c emit.c encoders.c
+SRCS_JIT = jit.c emit.c encoders.c helpers.c
 DIR_JIT = jit/
 
 SRCS = main.c utils.c
@@ -46,7 +46,7 @@ DEPS = $(addprefix $(DEPS_DIR), $(SRCS:.c=.d))
 
 INCS = -I./incs/
 CC = cc
-CFLAGS += -Wall -Wextra -Werror -MMD -MP $(INCS) $(ARCH_FLAGS)
+CFLAGS += -Wall -Wextra -Werror -MMD -MP $(INCS) $(ARCH_FLAGS) -g
 ARCH_FLAGS = -arch x86_64
 
 NAME = tinyCompile

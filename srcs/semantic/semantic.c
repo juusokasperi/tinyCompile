@@ -1,6 +1,8 @@
 #include "semantic.h"
+#include "ast.h"
 #include "compile.h"
 #include "defines.h"
+#include "error_handler.h"
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -68,6 +70,69 @@ bool semantic_scope_declare(SemanticAnalyzer *sa, StringView name,
 	return (true);
 }
 
+/*
+ * Currently type_compatibility function just supports void and scalar types,
+ * TODO for future..
+ bool check_type_compatibility(Type *dest, Type *src) {
+    // 1. Resolve typedefs (unwrap alias types)
+    dest = resolve_typedef(dest);
+    src = resolve_typedef(src);
+
+    // 2. Trivial Match
+    if (types_are_equal(dest, src)) return true;
+
+    // 3. Pointer Logic
+    if (is_pointer(dest) && is_pointer(src)) {
+        // e.g. allowing 'void *' generic assignment
+        if (is_void_ptr(dest) || is_void_ptr(src)) return true;
+        
+        // Recursive check: int** vs int** -> check int* vs int*
+        return check_type_compatibility(dest->ptr_to, src->ptr_to);
+    }
+
+    // 4. Array Decay
+    if (is_pointer(dest) && is_array(src)) {
+        // Check if array elements match the pointer target
+        return check_type_compatibility(dest->ptr_to, src->array_of);
+    }
+
+    // 5. Numeric Promotion (your current logic)
+    if (is_number(dest) && is_number(src)) {
+         return check_integer_promotion(dest, src);
+    }
+
+    return false;
+}
+*/
+
+static bool	check_type_compatibility(SemanticAnalyzer *sa, DataType dest, DataType src, ASTNode *node)
+{
+	if (dest == src)
+		return (true);
+
+	if (src == TYPE_VOID || dest == TYPE_VOID)
+	{
+		error_semantic(sa->errors, sa->filename, node->line, node->column,
+				"invalid use of void expression");
+		return (false);
+	}
+
+	if (type_is_integer(dest) && type_is_integer(src))
+	{
+		if (type_size(dest) >= type_size(src))
+			return (true);
+		error_add(sa->errors, ERROR_SEMANTIC, ERROR_LEVEL_WARNING, 
+				sa->filename, node->line, node->column, 
+				"implicit conversion from '%s' to '%s' may lose precision",
+				type_name(src), type_name(dest));
+		return (true);
+	}
+	error_semantic(sa->errors, sa->filename, node->line, node->column,
+			"incompatible types: cannot assign '%s' to '%s'",
+			type_name(src), type_name(dest));
+	return (false);
+}
+
 static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 {
 	if (!node)
@@ -75,6 +140,8 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 	switch (node->type)
 	{
 		case AST_NUMBER:
+			node->value_type = TYPE_INT64;		// TODO For now all are int64..
+												// Add literal suffixes (L, UL, etc)
 			return (true);
 		case AST_IDENTIFIER:
 		{
@@ -86,6 +153,7 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 						(int)node->identifier.name.len, node->identifier.name.start);
 				return (false);
 			}
+			node->value_type = var->type;
 			return (true);
 		}
 		case AST_CALL:
@@ -132,7 +200,11 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 			{
 				if (!analyze_expression(sa, node->call.args[i]))
 					all_ok = false;
+				if (!check_type_compatibility(sa, func->params[i].type,
+							node->call.args[i]->value_type, node->call.args[i]))
+					all_ok = false;
 			}
+			node->value_type = func->return_type;
 			return (all_ok);
 		}
 		case AST_ADD:
@@ -142,11 +214,68 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 		{
 			bool left_ok = analyze_expression(sa, node->binary.left);
 			bool right_ok = analyze_expression(sa, node->binary.right);
+			if (!left_ok || !right_ok)
+				return (false);
+			DataType left_type = node->binary.left->value_type;
+			DataType right_type = node->binary.right->value_type;
+			// TODO	Proper type promotion rules - for now, just use the larger
+			if (type_size(left_type) >= type_size(right_type))
+				node->value_type = left_type;
+			else
+				node->value_type = right_type;
+			return (true);
+		}
+		case AST_EQUAL:
+		case AST_GREATER_EQUAL:
+		case AST_LESS_EQUAL:
+		case AST_LESS:
+		case AST_NOT_EQUAL:
+		{
+			bool left_ok = analyze_expression(sa, node->binary.left);
+			bool right_ok = analyze_expression(sa, node->binary.right);
+			node->value_type = TYPE_INT64;	// TODO Comparisons always return bool
+											//		Represented as int64 for now
 			return (left_ok && right_ok);
 		}
 		case AST_NEGATE:
+		{
+			bool ok = analyze_expression(sa, node->unary.operand);
+			if (ok)
+				node->value_type = node->unary.operand->value_type;
+			return (ok);
+		}
 		case AST_NOT:
-			return (analyze_expression(sa, node->unary.operand));
+		{
+			 bool ok = analyze_expression(sa, node->unary.operand);
+			 // TODO Logical not returns TYPE_BOOL (implement later)
+			 node->value_type = TYPE_INT64;
+			 return (ok);
+		}
+		case AST_BIT_NOT:
+		{
+			bool ok = analyze_expression(sa, node->unary.operand);
+			if (ok)
+				node->value_type = node->unary.operand->value_type;
+			return (ok);
+		}
+		case AST_BIT_AND:
+		case AST_BIT_OR:
+		case AST_BIT_XOR:
+		case AST_LSHIFT:
+		case AST_RSHIFT:
+		{
+			bool left_ok = analyze_expression(sa, node->binary.left);
+			bool right_ok = analyze_expression(sa, node->binary.right);
+			if (!left_ok || !right_ok)
+				return (false);
+
+			DataType type = node->binary.left->value_type;
+			if (type_size(type) < type_size(TYPE_INT))
+				type = TYPE_INT;
+
+			node->value_type = type;
+			return (true);
+		}
 		default:
 			return (true);
 	}
@@ -163,9 +292,14 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 		{
 			bool init_ok = true;
 			if (node->var_decl.initializer)
+			{
 				init_ok = analyze_expression(sa, node->var_decl.initializer);
+				if (init_ok && !check_type_compatibility(sa, node->var_decl.var_type,
+							node->var_decl.initializer->value_type, node->var_decl.initializer))
+					init_ok = false;
+			}
 			bool decl_ok = semantic_scope_declare(sa, node->var_decl.var_name,
-					TYPE_INT64, node->line);
+					node->var_decl.var_type, node->line);
 			return (init_ok && decl_ok);
 		}
 		case AST_ASSIGNMENT:
@@ -179,7 +313,12 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 						node->assignment.var_name.start);
 				return (false);
 			}
-			return (analyze_expression(sa, node->assignment.value));
+			bool ok = analyze_expression(sa, node->assignment.value);
+			node->value_type = var->type;
+			if (ok && !check_type_compatibility(sa, var->type, 
+						node->assignment.value->value_type, node->assignment.value))
+				ok = false;
+			return (ok);
 		}
 		case AST_RETURN:
 		{
@@ -192,7 +331,13 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 							"void function should not return a value");
 					return (false);
 				}
-				return (analyze_expression(sa, node->return_stmt.expression));
+				bool ok = analyze_expression(sa, node->return_stmt.expression);
+				node->value_type = sa->current_return_type;
+				if (ok && !check_type_compatibility(sa, sa->current_return_type, 
+							node->return_stmt.expression->value_type, 
+							node->return_stmt.expression))
+					ok = false;
+				return (ok);
 			}
 			else
 			{
@@ -248,7 +393,7 @@ bool	semantic_global_declare_function(GlobalScope *global, ErrorContext *errors,
 	Parameter	*params = func_node->function.params;
 	size_t		param_count = func_node->function.param_count;
 	int			line = func_node->line;
-	DataType	return_type = TYPE_INT64;
+	DataType	return_type = func_node->function.return_type;
 	bool		is_prototype = func_node->function.is_prototype;
 
 	if (param_count > MAX_PARAMS_PER_FUNCTION)
@@ -261,6 +406,16 @@ bool	semantic_global_declare_function(GlobalScope *global, ErrorContext *errors,
 	FunctionInfo *existing = semantic_global_lookup_function(global, name);
 	if (existing)
 	{
+		if (existing->return_type != return_type)
+		{
+			error_semantic(errors, filename, line, 0,
+					"conflicting return types for function '%.*s' "
+					"(previous: %s, now: %s)",
+					(int)name.len, name.start,
+					type_name(existing->return_type),
+					type_name(return_type));
+			return (false);
+		}
 		if (existing->param_count != param_count)
 		{
 			error_semantic(errors, filename, line, 0,
@@ -339,7 +494,7 @@ static bool analyze_node(SemanticAnalyzer *sa, ASTNode *node)
 		return (false);
 	if (node->function.is_prototype)
 		return (true);
-	sa->current_return_type = TYPE_INT64; // TODO Get from function
+	sa->current_return_type = node->function.return_type;
 	semantic_scope_enter(sa);
 	bool params_ok = true;
 	for (size_t i = 0; i < node->function.param_count; ++i)

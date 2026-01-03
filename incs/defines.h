@@ -13,6 +13,11 @@
 # define MAX_EXPRESSION_DEPTH		128
 # define MAX_VREGS_PER_FUNCTION		65536
 
+/* -- For encoders.c -- */
+# define STACK_ALIGNMENT			16
+# define WORD_SIZE					8
+# define SYS_V_MAX_REG_ARGS			6
+
 # define CALLEE_SAVED_COUNT 5
 # define CALLEE_SAVED_SIZE	(CALLEE_SAVED_COUNT * 8)
 

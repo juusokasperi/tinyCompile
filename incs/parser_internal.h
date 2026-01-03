@@ -48,6 +48,7 @@ bool		match(Parser *parser, TokenType type);
 bool		check(Parser *parser, TokenType type);
 const char	*token_type_name(TokenType type);
 Precedence	get_token_precedence(TokenType type);
+DataType	parse_type(Parser *parser);
 
 
 
