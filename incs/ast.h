@@ -139,7 +139,7 @@ static inline DataType type_promote(DataType a, DataType b)
 }
 
 /* Helper functions for type parsing (defined in ast.c) */
-DataType	type_from_string_view(StringView sv);
+DataType	type_from_sv(StringView sv);
 bool		is_type_keyword(StringView sv);
 
 typedef struct {

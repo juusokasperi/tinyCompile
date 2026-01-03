@@ -76,3 +76,15 @@ bool check(Parser *parser, TokenType type)
 	return (parser->next.type == type);
 }
 
+DataType	parse_type(Parser *parser)
+{
+	if (is_type_keyword(parser->next.text))
+	{
+		parser_advance(parser);
+		return (type_from_sv(parser->current.text));
+	}
+
+	parser_error(parser, "expected type specifier (e.g. 'int', 'char', 'void')");
+	return (TYPE_VOID);
+}
+
