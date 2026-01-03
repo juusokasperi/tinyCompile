@@ -5,5 +5,6 @@ int main() {
 	int d = a - b;	// 7
 	int e = a * b;	// 30
 	int f = a / b;	// 3
-	return c + d + e + f;  // 53
+	int g = 4 >> 1; // 2
+	return (c + d + e + f) * g;  // 106
 }
