@@ -153,12 +153,17 @@ static size_t gen_binary_op(Arena *a, IRFunction *f, ASTNode *node, SymbolTable 
 		case AST_LESS_EQUAL:	op = IR_LE; break;
 		case AST_GREATER:		op = IR_GT; break;
 		case AST_GREATER_EQUAL:	op = IR_GE; break;
+		case AST_LSHIFT:		op = IR_LSHIFT; break;
+		case AST_RSHIFT:
+			if (type_is_unsigned(node->binary.left->value_type))
+				op = IR_URSHIFT;
+			else
+				op = IR_RSHIFT;
+			break;
 		case AST_BIT_AND:
 		case AST_BIT_NOT:
 		case AST_BIT_OR:
 		case AST_BIT_XOR:
-		case AST_LSHIFT:
-		case AST_RSHIFT:
 								fprintf(stderr, 
 										"Internal error: " \
 										"Bitwise NOT yet implemented\n");
@@ -201,13 +206,13 @@ static size_t gen_expression(Arena *a, IRFunction *f, ASTNode *node, SymbolTable
 		case AST_LESS_EQUAL:
 		case AST_GREATER:
 		case AST_GREATER_EQUAL:
+		case AST_LSHIFT:
+		case AST_RSHIFT:
 			return (gen_binary_op(a, f, node, symbol_table));
 		case AST_BIT_AND:
 		case AST_BIT_NOT:
 		case AST_BIT_OR:
 		case AST_BIT_XOR:
-		case AST_LSHIFT:
-		case AST_RSHIFT:
 			error_add(f->errors, ERROR_CODEGEN, ERROR_LEVEL_ERROR,
 					f->filename, node->line, node->column,
 					"bitwise NOT yet implemented");

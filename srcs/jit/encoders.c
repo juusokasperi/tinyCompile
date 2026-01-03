@@ -445,3 +445,21 @@ size_t encode_load(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	}
 	return (size);
 }
+
+size_t	encode_lshift(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;
+	return (emit_shift_op(buf, inst, ctx, EXT_SHL));
+}
+
+size_t	encode_rshift(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;
+	return (emit_shift_op(buf, inst, ctx, EXT_SAR));
+}
+
+size_t	encode_urshift(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *ctx)
+{
+	(void)cnt;
+	return (emit_shift_op(buf, inst, ctx, EXT_SHR));
+}
