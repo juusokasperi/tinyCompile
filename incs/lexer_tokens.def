@@ -17,6 +17,8 @@
 
 // Keywords (Most have no parse logic in expressions)
 X_TOKEN(TOKEN_INT,			"int",			true,	PREC_NONE,	NULL,	NULL, parse_var_decl)
+X_TOKEN(TOKEN_CHAR,			"char",			true,	PREC_NONE,	NULL,	NULL, NULL)
+X_TOKEN(TOKEN_VOID,			"void",			true,	PREC_NONE,	NULL,	NULL, NULL)
 X_TOKEN(TOKEN_IF,			"if",			true,	PREC_NONE,	NULL,	NULL, parse_if)
 X_TOKEN(TOKEN_ELSE,			"else",			true,	PREC_NONE,	NULL,	NULL, NULL)
 X_TOKEN(TOKEN_WHILE,		"while",		true,	PREC_NONE,	NULL,	NULL, parse_while)
