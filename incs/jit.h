@@ -68,6 +68,7 @@ typedef enum {
 	OP_PREFIX_0F = 0x0F,	// Prefix for 2-byte opcodes
 	OP_MOVZX = 0xB6,		// MOVZX r64, r/m8 (w/ 0f prefix)
 	OP_LEA = 0x8D,			// Load effective address
+	OP_SHIFT_CL = 0xD3,		// Shift r/m by CL
 
 	OP_CQO = 0x99,		// Sign extend (RAX -> RDX)
 	OP_IDIV = 0xF7,		// Integer division
@@ -86,9 +87,12 @@ typedef enum {
 	EXT_ADD = 0,
 	EXT_CALL = 2,
 	EXT_NEG = 3,
+	EXT_SHL = 4,	// Shift Left
+	EXT_SHR = 5,	// Logical Shift Right
 	EXT_SUB = 5,
 	EXT_IDIV = 7,
 	EXT_CMP = 7,
+	EXT_SAR = 7,	// Arithmetic Shift Right
 } X86Extension;
 
 typedef enum {
