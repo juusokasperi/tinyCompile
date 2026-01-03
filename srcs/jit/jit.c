@@ -94,7 +94,6 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 	emit_push(&curr, &size, REG_R15);
 
 	// 3. Allocate stack for locals
-	// Always reserve align_pad so that RSP is 16-byte aligned before any CALL
 	if (stack_size > 0)
 	{
 		emit_u8(&curr, &size, REX_W);
@@ -158,6 +157,33 @@ static inline void reset_state(JITContext *ctx)
 	memset(ctx->phys_regs, 0, sizeof(ctx->phys_regs));
 }
 
+static inline size_t	calculate_aligned_stack_size(IRFunction *ir_func)
+{
+	size_t	raw_locals_size;
+	size_t	bytes_pushed;
+	size_t	total_usage;
+	size_t	remainder;
+	size_t	padding;
+
+	// Calculate raw size needed for variables (local + spills)
+	raw_locals_size = (ir_func->stack_count + ir_func->vreg_count) * 8;
+
+	// Calculate bytes already on the stack before allocating locals
+	//		- Return Address (8 bytes)
+	//		- RBP (8 bytes)
+	//		- Callee-Saved Registers (CALLEE_SAVED_COUNT * 8 bytes)
+	bytes_pushed = 8 + 8 + (CALLEE_SAVED_COUNT * 8);
+
+	// Calculate total stack usage with raw_locals_Size
+	total_usage = bytes_pushed + raw_locals_size;
+
+	// Calculate padding needed to reach 16-byte alignment
+	remainder = total_usage % 16;
+	padding = (remainder == 0) ? 0 : (16 - remainder);
+	
+	return (raw_locals_size + padding);
+}
+
 JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *func)
 {
 	StringView func_name = func->function.name;
@@ -173,12 +199,8 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 		return (result);
 	}
 
-	// Round locals to 16-byte boundary; align_pad handled inside encode_prologue
 	ctx->stack_base = ir_func->stack_count;
-	size_t total_slots = ir_func->stack_count + ir_func->vreg_count;
-	size_t stack_bytes = total_slots * 8;
-	if ((stack_bytes % 16) == 0)
-		stack_bytes += 8;
+	size_t stack_bytes = calculate_aligned_stack_size(ir_func);
 
 	// == PASS 1: Calculate size ===
 	size_t predicted_size = encode_prologue(NULL, stack_bytes, param_count, ctx);
