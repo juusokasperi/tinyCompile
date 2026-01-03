@@ -9,7 +9,7 @@
 
 static void	patch_jump_offset(uint8_t *loc, uint8_t *target)
 {
-	int32_t	rel = (int32_t)(target - (loc + 4));
+	int32_t	rel = (int32_t)(target - (loc + sizeof(int32_t)));
 	memcpy(loc, &rel, sizeof(int32_t));
 }
 
@@ -23,7 +23,6 @@ static inline size_t emit_jump(uint8_t *buf, size_t label_id, JITContext *ctx, u
 {
 	uint8_t	*curr = buf;
 	size_t	size = 0;
-
 	if (opcode == OP_JMP_REL32)
 		emit_u8(&curr, &size, OP_JMP_REL32);
 	else
@@ -37,7 +36,7 @@ static inline size_t emit_jump(uint8_t *buf, size_t label_id, JITContext *ctx, u
 	if (label_id < MAX_LABELS && ctx->label_defined[label_id])
 	{
 		uint8_t	*target = ctx->label_offset[label_id];
-		int32_t rel = (int32_t)(target - (curr + 4));
+		int32_t rel = (int32_t)(target - (curr + sizeof(int32_t)));
 		emit_u32(&curr, &size, (uint32_t)rel);
 	}
 	else
@@ -351,7 +350,7 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 		emit_u8(&curr, &size, REX_W);
 		emit_u8(&curr, &size, ALU_IMM);
 		emit_u8(&curr, &size, MOD_REG | (EXT_SUB << 3) | REG_RSP);
-		emit_u32(&curr, &size, 8);
+		emit_u32(&curr, &size, STACK_ALIGNMENT / 2);
 	}
 
 	// 3. Push stack arguments in reverse order
@@ -402,7 +401,8 @@ size_t encode_call(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	// 6. Cleanup stack (arguments + padding)
 	if (stack_args > 0 || needs_alignment)
 	{
-		size_t cleanup = stack_args * 8 + (needs_alignment ? 8 : 0);
+		size_t cleanup = stack_args * (STACK_ALIGNMENT / 2) 
+			+ (needs_alignment ? (STACK_ALIGNMENT / 2) : 0);
 		emit_u8(&curr, &size, REX_W);
 		emit_u8(&curr, &size, ALU_IMM);
 		emit_u8(&curr, &size, MOD_REG | (EXT_ADD << 3) | REG_RSP);
