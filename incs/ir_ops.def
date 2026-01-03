@@ -24,6 +24,11 @@ X_OP(IR_LE,		"LE",		FMT_BIN,	encode_cmp)
 X_OP(IR_GT,		"GT",		FMT_BIN,	encode_cmp)
 X_OP(IR_GE,		"GE",		FMT_BIN,	encode_cmp)
 
+// Math - Bitshift
+X_OP(IR_LSHIFT,	"SHL",		FMT_BIN,	encode_lshift)
+X_OP(IR_RSHIFT,	"SAR",		FMT_BIN,	encode_rshift)
+X_OP(IR_URSHIFT,"SHR",		FMT_BIN,	encode_urshift)
+
 // Math - Unary
 X_OP(IR_NEG,	"NEG",      FMT_UNARY,  encode_neg)
 X_OP(IR_NOT,	"NOT",      FMT_UNARY,  encode_not)
