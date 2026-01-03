@@ -269,7 +269,11 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 			if (!left_ok || !right_ok)
 				return (false);
 
-			node->value_type = node->binary.left->value_type;
+			DataType type = node->binary.left->value_type;
+			if (type_size(type) < type_size(TYPE_INT))
+				type = TYPE_INT;
+
+			node->value_type = type;
 			return (true);
 		}
 		default:
