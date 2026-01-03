@@ -79,6 +79,8 @@ ASTNode	*parse_binary(Parser *parser, ASTNode *left)
 		case TOKEN_LESS_EQUAL:		node->type = AST_LESS_EQUAL; break;
 		case TOKEN_GREATER:			node->type = AST_GREATER; break;
 		case TOKEN_GREATER_EQUAL:	node->type = AST_GREATER_EQUAL; break;
+		case TOKEN_LSHIFT:			node->type = AST_LSHIFT; break;
+		case TOKEN_RSHIFT:			node->type = AST_RSHIFT; break;
 		default: break;
 	}
 

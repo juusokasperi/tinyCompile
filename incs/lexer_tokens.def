@@ -26,12 +26,16 @@ X_TOKEN(TOKEN_RETURN,		"return",		true,	PREC_NONE,	NULL,	NULL, parse_return)
 X_TOKEN(TOKEN_NUMBER,		"number",		false,	PREC_NONE,	parse_number,		NULL, NULL)
 X_TOKEN(TOKEN_IDENTIFIER,	"identifier",	false,	PREC_NONE,	parse_identifier,	NULL, NULL)
 
-// Operators
+// Operators - Arithmetic
 X_TOKEN(TOKEN_PLUS,			"+",        false,		PREC_TERM,		NULL,			parse_binary, NULL)
 X_TOKEN(TOKEN_MINUS,		"-",        false,		PREC_TERM,		parse_unary,	parse_binary, NULL)
 X_TOKEN(TOKEN_STAR,			"*",        false,		PREC_FACTOR,	NULL,			parse_binary, NULL)
 X_TOKEN(TOKEN_SLASH,		"/",        false,		PREC_FACTOR,	NULL,			parse_binary, NULL)
 X_TOKEN(TOKEN_BANG,			"!",        false,		PREC_NONE,		parse_unary,	NULL,		  NULL)
+
+// Operators - Bitwise Shift
+X_TOKEN(TOKEN_LSHIFT,		"<<",		false,		PREC_SHIFT,		NULL,			parse_binary, NULL)
+X_TOKEN(TOKEN_RSHIFT,		">>",		false,		PREC_SHIFT,		NULL,			parse_binary, NULL)
 
 // Comparisons
 X_TOKEN(TOKEN_EQUAL_EQUAL,	"==",      false,		PREC_EQUALITY,		NULL,	parse_binary,	NULL)

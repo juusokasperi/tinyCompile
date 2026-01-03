@@ -73,12 +73,22 @@ Token lexer_next(Lexer *l)
 				lexer_advance(l);
 				return (lexer_make_token_no_sv(l, TOKEN_GREATER_EQUAL));
 			}
+			if (lexer_peek(l) == '>')
+			{
+				lexer_advance(l);
+				return (lexer_make_token_no_sv(l, TOKEN_RSHIFT));
+			}
 			return (lexer_make_token_no_sv(l, TOKEN_GREATER));
 		case '<':
 			if (lexer_peek(l) == '=')
 			{
 				lexer_advance(l); 
 				return (lexer_make_token_no_sv(l, TOKEN_LESS_EQUAL));
+			}
+			if (lexer_peek(l) == '<')
+			{
+				lexer_advance(l);
+				return (lexer_make_token_no_sv(l, TOKEN_LSHIFT));
 			}
 			return (lexer_make_token_no_sv(l, TOKEN_LESS));
 		default:  return (lexer_make_token_no_sv(l, TOKEN_ERROR));
