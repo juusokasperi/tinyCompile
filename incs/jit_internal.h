@@ -20,6 +20,8 @@ size_t	emit_standard_binary_op(uint8_t *buf, IRInstruction *inst, JITContext *ct
 							X86Opcode opcode);
 size_t	emit_comparison_op(uint8_t *buf, IRInstruction *inst, JITContext *ctx,
 							X86Condition condition);
+size_t		emit_shift_op(uint8_t *buf, IRInstruction *inst, JITContext *ctx, 
+							X86Extension extension);
 
 /* --- Encoder Prototypes (Auto-Generated) --- */
 #define X_OP(opcode, name, fmt, encoder) \

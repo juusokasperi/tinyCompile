@@ -88,3 +88,26 @@ size_t	emit_comparison_op(uint8_t *buf, IRInstruction *inst, JITContext *ctx, X8
 	store_reg_to_location(&curr, &size, dest, REG_RAX);
 	return (size);
 }
+
+size_t	emit_shift_op(uint8_t *buf, IRInstruction *inst, JITContext *ctx, X86Extension extension)
+{
+	uint8_t		*curr = buf;
+	size_t		size = 0;
+	Location	dest = get_location(ctx, inst->dest);
+	Location	src_1 = get_location(ctx, inst->src_1);
+	Location	src_2 = get_location(ctx, inst->src_2);
+
+	// Load value to shift into RAX
+	load_location_to_reg(&curr, &size, REG_RAX, src_1);
+	// Load shift amount into RCX
+	load_location_to_reg(&curr, &size, REG_RCX, src_2);
+	// Emit SHL/SAR r/m64, CL
+	emit_u8(&curr, &size, REX_W);
+	emit_u8(&curr, &size, OP_SHIFT_CL);
+
+	emit_u8(&curr, &size, MOD_REG | (extension << 3) | REG_RAX);
+
+	// Store result
+	store_reg_to_location(&curr, &size, dest, REG_RAX);
+	return (size);
+}
