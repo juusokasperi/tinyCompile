@@ -70,6 +70,69 @@ bool semantic_scope_declare(SemanticAnalyzer *sa, StringView name,
 	return (true);
 }
 
+/*
+ * Currently type_compatibility function just supports void and scalar types,
+ * TODO for future..
+ bool check_type_compatibility(Type *dest, Type *src) {
+    // 1. Resolve typedefs (unwrap alias types)
+    dest = resolve_typedef(dest);
+    src = resolve_typedef(src);
+
+    // 2. Trivial Match
+    if (types_are_equal(dest, src)) return true;
+
+    // 3. Pointer Logic
+    if (is_pointer(dest) && is_pointer(src)) {
+        // e.g. allowing 'void *' generic assignment
+        if (is_void_ptr(dest) || is_void_ptr(src)) return true;
+        
+        // Recursive check: int** vs int** -> check int* vs int*
+        return check_type_compatibility(dest->ptr_to, src->ptr_to);
+    }
+
+    // 4. Array Decay
+    if (is_pointer(dest) && is_array(src)) {
+        // Check if array elements match the pointer target
+        return check_type_compatibility(dest->ptr_to, src->array_of);
+    }
+
+    // 5. Numeric Promotion (your current logic)
+    if (is_number(dest) && is_number(src)) {
+         return check_integer_promotion(dest, src);
+    }
+
+    return false;
+}
+*/
+
+static bool	check_type_compatibility(SemanticAnalyzer *sa, DataType dest, DataType src, ASTNode *node)
+{
+	if (dest == src)
+		return (true);
+
+	if (src == TYPE_VOID || dest == TYPE_VOID)
+	{
+		error_semantic(sa->errors, sa->filename, node->line, node->column,
+				"invalid use of void expression");
+		return (false);
+	}
+
+	if (type_is_integer(dest) && type_is_integer(src))
+	{
+		if (type_size(dest) >= type_size(src))
+			return (true);
+		error_add(sa->errors, ERROR_SEMANTIC, ERROR_LEVEL_WARNING, 
+				sa->filename, node->line, node->column, 
+				"implicit conversion from '%s' to '%s' may lose precision",
+				type_name(src), type_name(dest));
+		return (true);
+	}
+	error_semantic(sa->errors, sa->filename, node->line, node->column,
+			"incompatible types: cannot assign '%s' to '%s'",
+			type_name(src), type_name(dest));
+	return (false);
+}
+
 static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 {
 	if (!node)
@@ -137,8 +200,9 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 			{
 				if (!analyze_expression(sa, node->call.args[i]))
 					all_ok = false;
-				// TODO	Check type compatibility with param
-				// if (node->call.args[i]->value_type != func->params[i].type) ...
+				if (!check_type_compatibility(sa, func->params[i].type,
+							node->call.args[i]->value_type, node->call.args[i]))
+					all_ok = false;
 			}
 			node->value_type = func->return_type;
 			return (all_ok);
@@ -205,7 +269,6 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 			if (!left_ok || !right_ok)
 				return (false);
 
-			// Bitwise operations usually take the type of the left operand
 			node->value_type = node->binary.left->value_type;
 			return (true);
 		}
@@ -227,8 +290,9 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 			if (node->var_decl.initializer)
 			{
 				init_ok = analyze_expression(sa, node->var_decl.initializer);
-				// TODO Check type compatibility
-				//		if (node->var_decl.var_type != node->var_decl.initializer->value_type)
+				if (init_ok && !check_type_compatibility(sa, node->var_decl.var_type,
+							node->var_decl.initializer->value_type, node->var_decl.initializer))
+					init_ok = false;
 			}
 			bool decl_ok = semantic_scope_declare(sa, node->var_decl.var_name,
 					node->var_decl.var_type, node->line);
@@ -247,7 +311,9 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 			}
 			bool ok = analyze_expression(sa, node->assignment.value);
 			node->value_type = var->type;
-			// TODO Check type compatibility
+			if (ok && !check_type_compatibility(sa, var->type, 
+						node->assignment.value->value_type, node->assignment.value))
+				ok = false;
 			return (ok);
 		}
 		case AST_RETURN:
@@ -263,7 +329,10 @@ static bool analyze_statement(SemanticAnalyzer *sa, ASTNode *node)
 				}
 				bool ok = analyze_expression(sa, node->return_stmt.expression);
 				node->value_type = sa->current_return_type;
-				// TODO Type compatibility
+				if (ok && !check_type_compatibility(sa, sa->current_return_type, 
+							node->return_stmt.expression->value_type, 
+							node->return_stmt.expression))
+					ok = false;
 				return (ok);
 			}
 			else
@@ -454,7 +523,7 @@ bool semantic_analyze(Arena *a, CompilationUnit *unit, ErrorContext *errors, Glo
 		.filename = unit->file.name,
 		.global = global,
 		.current = NULL,
-		.current_return_type = TYPE_INT64,	// TODO
+		.current_return_type = TYPE_INT64,
 	};
 
 	bool all_ok = true;

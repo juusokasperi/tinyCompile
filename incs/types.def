@@ -15,6 +15,7 @@
 
 X_TYPE(TYPE_VOID,		"void",		0,		false)
 
+X_TYPE(TYPE_INT,		"int",		8,		true)
 X_TYPE(TYPE_INT64,		"int64",	8,		true)
 X_TYPE(TYPE_INT32,		"int32",	4,		true)
 X_TYPE(TYPE_INT16,		"int16",	2,		true)

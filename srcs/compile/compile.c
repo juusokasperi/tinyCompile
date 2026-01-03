@@ -100,10 +100,7 @@ bool compile_parse_all(CompilationContext *ctx)
 		unit->ast = parser_parse(&lexer, ctx->arena, ctx->errors);
 		unit->parsed_ok = (unit->ast != NULL);
 		if (!unit->parsed_ok)
-		{
-			error_parser(ctx->errors, unit->file.name, 0, 0, "Parse failed");
 			all_ok = false;
-		}
 	}
 
 	return (all_ok);

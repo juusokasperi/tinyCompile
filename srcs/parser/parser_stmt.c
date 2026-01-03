@@ -51,16 +51,15 @@ ASTNode* parse_block(Parser *parser)
 
 ASTNode	*parse_function(Parser *parser)
 {
-	if (!match(parser, TOKEN_INT))
+	DataType return_type = parse_type(parser);
+	if (parser->panic_mode)
 		return (NULL);
 
-	DataType return_type = TYPE_INT64; // TODO Add support for other return types
-
-	parser_consume(parser, TOKEN_IDENTIFIER, "Expected function name.");
+	parser_consume(parser, TOKEN_IDENTIFIER, "expected function name.");
 	StringView func_name = parser->current.text;
 	int func_line = parser->current.line;
 
-	parser_consume(parser, TOKEN_LPAREN, "Expected '(' after function name.");
+	parser_consume(parser, TOKEN_LPAREN, "expected '(' after function name.");
 
 	Parameter *params = NULL;
 	size_t param_count = 0;
@@ -74,17 +73,17 @@ ASTNode	*parse_function(Parser *parser)
 		{
 			do
 			{
-				parser_consume(parser, TOKEN_INT, "Expected parameter type");
-				parser_consume(parser, TOKEN_IDENTIFIER, "Expected parameter name");
+				DataType param_type = parse_type(parser);
+				parser_consume(parser, TOKEN_IDENTIFIER, "expected parameter name");
 				params[param_count++] = (Parameter){
 					.name = parser->current.text,
-					.type = TYPE_INT64 // TODO
+					.type = param_type
 				};
 			} while (match(parser, TOKEN_COMMA));
 		}
 	}
 
-	parser_consume(parser, TOKEN_RPAREN, "Expected ')' after parameters.");
+	parser_consume(parser, TOKEN_RPAREN, "expected ')' after parameters.");
 
 	ASTNode *body = NULL;
 	bool is_prototype = false;
@@ -113,15 +112,17 @@ ASTNode	*parse_function(Parser *parser)
 
 ASTNode	*parse_var_decl(Parser *parser)
 {
-	parser_consume(parser, TOKEN_INT, "Expected 'int'");
-	DataType var_type = TYPE_INT64; //TODO
-	parser_consume(parser, TOKEN_IDENTIFIER, "Expected variable name");
+	DataType	var_type = parse_type(parser);
+
+	if (parser->panic_mode)
+		return (NULL);
+	parser_consume(parser, TOKEN_IDENTIFIER, "expected variable name");
 	StringView var_name = parser->current.text;
 	int var_line = parser->current.line;
 	ASTNode *init = NULL;
 	if (match(parser, TOKEN_EQUAL))
 		init = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	parser_consume(parser, TOKEN_SEMICOLON, "expected ';'");
 	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_VAR_DECL,
@@ -138,12 +139,12 @@ ASTNode	*parse_var_decl(Parser *parser)
 
 ASTNode	*parse_return(Parser *parser)
 {
-	parser_consume(parser, TOKEN_RETURN, "Expected 'return'");
+	parser_consume(parser, TOKEN_RETURN, "expected 'return'");
 	int ret_line = parser->current.line;
 	ASTNode *expr = NULL;
 	if (!check(parser, TOKEN_SEMICOLON))
 		expr = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	parser_consume(parser, TOKEN_SEMICOLON, "expected ';'");
 	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
 		.type = AST_RETURN,
@@ -156,11 +157,11 @@ ASTNode	*parse_return(Parser *parser)
 
 ASTNode	*parse_if(Parser *parser)
 {
-	parser_consume(parser, TOKEN_IF, "Expected 'if'");
+	parser_consume(parser, TOKEN_IF, "expected 'if'");
 	int if_line = parser->current.line;
-	parser_consume(parser, TOKEN_LPAREN, "Expected '('");
+	parser_consume(parser, TOKEN_LPAREN, "expected '('");
 	ASTNode *condition = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_RPAREN, "Expected ')'");
+	parser_consume(parser, TOKEN_RPAREN, "expected ')'");
 	ASTNode *then_branch = parse_statement(parser);
 	ASTNode *else_branch = NULL;
 	if (match(parser, TOKEN_ELSE))
@@ -177,11 +178,11 @@ ASTNode	*parse_if(Parser *parser)
 
 ASTNode	*parse_while(Parser *parser)
 {
-	parser_consume(parser, TOKEN_WHILE, "Expected 'while'");
+	parser_consume(parser, TOKEN_WHILE, "expected 'while'");
 	int while_line = parser->current.line;
-	parser_consume(parser, TOKEN_LPAREN, "Expected '('");
+	parser_consume(parser, TOKEN_LPAREN, "expected '('");
 	ASTNode *condition = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_RPAREN, "Expected ')'");
+	parser_consume(parser, TOKEN_RPAREN, "expected ')'");
 	ASTNode *body = parse_statement(parser);
 	ASTNode *node = arena_alloc(parser->arena, sizeof(ASTNode));
 	*node = (ASTNode){
@@ -196,6 +197,6 @@ ASTNode	*parse_while(Parser *parser)
 ASTNode	*parse_expr_stmt(Parser *parser)
 {
 	ASTNode *expr = parse_expression(parser, PREC_NONE);
-	parser_consume(parser, TOKEN_SEMICOLON, "Expected ';'");
+	parser_consume(parser, TOKEN_SEMICOLON, "expected ';'");
 	return (expr);
 }

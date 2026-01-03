@@ -8,7 +8,7 @@ const TypeInfo	type_info_table[] = {
 };
 
 /* Helper to parse type from string (useful for parser) */
-DataType type_from_string(StringView sv)
+DataType type_from_sv(StringView sv)
 {
 	#define X_TYPE(enum_name, str_name, size, is_signed) \
 		if (sv_eq_cstr(sv, str_name)) \
