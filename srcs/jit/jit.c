@@ -344,7 +344,7 @@ bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
 			{
 				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);
 				error_fatal(errors, unit->file.name, func->line, 0,
-						"IR Generation failed for function '%.*s'",
+						"IR generation failed for function '%.*s'",
 						(int)func->function.name.len, func->function.name.start);
 				return (false);
 			}
