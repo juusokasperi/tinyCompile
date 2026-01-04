@@ -6,7 +6,7 @@ OUTPUT="all_sources.txt"
 
 find . \
   -type d -name tests -prune -o \
-  -type f \( -name "*.c" -o -name "*.h" \) -print \
+  -type f \( -name "*.c" -o -name "*.h" -o -name "*.def" \) -print \
 | sort | while IFS= read -r file
 do
     echo "==================================================" >> "$OUTPUT"
