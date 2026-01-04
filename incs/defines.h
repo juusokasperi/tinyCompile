@@ -15,6 +15,9 @@
 # define MAX_EXPRESSION_DEPTH		128
 # define MAX_VREGS_PER_FUNCTION		65536
 
+// To prevent buffer overflow
+# define MAX_IR_INSTRUCTIONS_PER_FUNCTION	(MAX_PARAMS_PER_FUNCTION * 100)
+
 /* -- For encoders.c -- */
 # define STACK_ALIGNMENT			16
 # define WORD_SIZE					8

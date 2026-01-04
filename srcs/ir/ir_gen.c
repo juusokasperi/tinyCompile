@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "defines.h"
 #include "error_handler.h"
 #include "ir.h"
 #include <stddef.h>
@@ -12,6 +13,9 @@ static void		gen_statement(Arena *a, IRFunction *f,
 
 static void emit(Arena *a, IRFunction *f, IRInstruction inst)
 {
+	if (f->total_count >= MAX_IR_INSTRUCTIONS_PER_FUNCTION)
+		return;
+
 	if (f->tail == NULL || f->tail->count >= IR_CHUNK_SIZE)
 	{
 		IRChunk *new_chunk = arena_alloc(a, sizeof(IRChunk));
@@ -488,6 +492,16 @@ IRFunction *ir_gen(Arena *a, ASTNode *root, ErrorContext *errors, const char *fi
 			.type = root->value_type,
 			.src_1 = result_reg };
 		emit(a, f, ret);
+	}
+
+	if (f->total_count >= MAX_IR_INSTRUCTIONS_PER_FUNCTION)
+	{
+		error_add(errors, ERROR_CODEGEN, ERROR_LEVEL_ERROR,
+				filename, 0, 0,
+				"function '%.*s' exceeds IR instruction limit (%d)",
+				(int)f->name.len, f->name.start,
+				MAX_IR_INSTRUCTIONS_PER_FUNCTION);
+		return (NULL);
 	}
 	return (f);
 }
