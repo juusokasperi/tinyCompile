@@ -51,7 +51,8 @@ Location get_location(JITContext *ctx, size_t vreg)
 	// Place locals below the callee-saved spill area (rbp - CALLEE_SAVED_SIZE)
 	// and below the fixed 8-byte pad used to restore 16-byte alignment for calls.
 	int32_t slot_idx = ctx->stack_base + vreg;
-	ctx->vreg_map[vreg].offset = -(CALLEE_SAVED_SIZE + 8 + (int32_t)(slot_idx + 1) * 8);
+	ctx->vreg_map[vreg].offset = -(CALLEE_SAVED_SIZE + (STACK_ALIGNMENT / 2) 
+			+ (int32_t)(slot_idx + 1) * (STACK_ALIGNMENT / 2));
 	return (ctx->vreg_map[vreg]);
 }
 
@@ -116,7 +117,7 @@ static size_t encode_prologue(uint8_t *buf, size_t stack_size, size_t param_coun
 		}
 		else
 		{
-			int32_t src_offset = 16 + (i - 6) * 8;
+			int32_t src_offset = 2 * WORD_SIZE + (i - 6) * WORD_SIZE;
 			if (loc.type == LOC_REG)
 				emit_load_param(&curr, &size, loc.reg, src_offset);
 			else
@@ -166,20 +167,20 @@ static inline size_t	calculate_aligned_stack_size(IRFunction *ir_func)
 	size_t	padding;
 
 	// Calculate raw size needed for variables (local + spills)
-	raw_locals_size = (ir_func->stack_count + ir_func->vreg_count) * 8;
+	raw_locals_size = (ir_func->stack_count + ir_func->vreg_count) * WORD_SIZE;
 
 	// Calculate bytes already on the stack before allocating locals
 	//		- Return Address (8 bytes)
 	//		- RBP (8 bytes)
 	//		- Callee-Saved Registers (CALLEE_SAVED_COUNT * 8 bytes)
-	bytes_pushed = 8 + 8 + (CALLEE_SAVED_COUNT * 8);
+	bytes_pushed = WORD_SIZE * 2 + (CALLEE_SAVED_COUNT * WORD_SIZE);
 
 	// Calculate total stack usage with raw_locals_Size
 	total_usage = bytes_pushed + raw_locals_size;
 
 	// Calculate padding needed to reach 16-byte alignment
-	remainder = total_usage % 16;
-	padding = (remainder == 0) ? 0 : (16 - remainder);
+	remainder = total_usage % STACK_ALIGNMENT;
+	padding = (remainder == 0) ? 0 : (STACK_ALIGNMENT - remainder);
 	
 	return (raw_locals_size + padding);
 }
@@ -219,7 +220,7 @@ JITResult jit_compile_function(JITContext *ctx, IRFunction *ir_func, ASTNode *fu
 	assert(instruction_count == ir_func->total_count && "IR instruction count mismatch");
 
 	// === Allocate ===
-	result.code = arena_alloc_aligned(ctx->exec_arena, predicted_size, 16);
+	result.code = arena_alloc_aligned(ctx->exec_arena, predicted_size, STACK_ALIGNMENT);
 	if (!result.code)
 	{
 		fprintf(stderr, BOLD_RED "	> failed to allocate %zu bytes for JIT code\n" RESET,
@@ -343,7 +344,7 @@ bool	jit_compile_pass(JITContext *jit_ctx, CompilationContext *comp_ctx,
 			{
 				fprintf(stderr,  BOLD_RED "  > ir generation failed\n" RESET);
 				error_fatal(errors, unit->file.name, func->line, 0,
-						"IR Generation failed for function '%.*s'",
+						"IR generation failed for function '%.*s'",
 						(int)func->function.name.len, func->function.name.start);
 				return (false);
 			}

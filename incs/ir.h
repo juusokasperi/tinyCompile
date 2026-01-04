@@ -80,6 +80,7 @@ typedef struct {
 	const char		*filename;
 } IRFunction;
 
+uint32_t		hash_sv(StringView sv);
 void			symbol_table_restore(SymbolTable *st, ScopeChange *target_state);
 Symbol*			symbol_table_lookup(SymbolTable *st, StringView name);
 void			symbol_table_add(SymbolTable *st, StringView name, size_t vreg);

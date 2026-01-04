@@ -18,12 +18,17 @@ typedef struct {
 	int			line;
 } VarInfo;
 
+typedef struct {
+	VarInfo		info;
+	bool		occupied;
+} ScopeEntry;
+
 typedef struct Scope Scope;
 
 struct Scope {
-	Scope	*parent;
-	VarInfo	vars[MAX_VARS_PER_SCOPE];
-	size_t	var_count;
+	Scope		*parent;
+	ScopeEntry	entries[SCOPE_HASH_SIZE];
+	size_t		var_count;
 };
 
 typedef struct {

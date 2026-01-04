@@ -1,10 +1,12 @@
 #ifndef DEFINES_H
 # define DEFINES_H
 
+// For scope variables
+# define SCOPE_HASH_SIZE			128
+
 # define MAX_SOURCE_FILES			64
 # define IR_CHUNK_SIZE				64 
 # define MAX_PARAMS_PER_FUNCTION	32
-# define MAX_VARS_PER_SCOPE			256
 # define MAX_FUNCTION_COUNT			256
 # define MAX_CALL_SITES				1024
 # define SYMBOL_TABLE_SIZE			4096
@@ -12,6 +14,9 @@
 # define MAX_BLOCK_STATEMENTS		512
 # define MAX_EXPRESSION_DEPTH		128
 # define MAX_VREGS_PER_FUNCTION		65536
+
+// Upper bound on IR instructions per function to prevent buffer overflow
+# define MAX_IR_INSTRUCTIONS_PER_FUNCTION	65536
 
 /* -- For encoders.c -- */
 # define STACK_ALIGNMENT			16

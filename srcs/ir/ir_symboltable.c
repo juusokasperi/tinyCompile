@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static uint32_t	hash_sv(StringView sv)
+uint32_t	hash_sv(StringView sv)
 {
 	uint32_t	hash = 2166136261u;
 

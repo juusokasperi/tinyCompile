@@ -57,6 +57,7 @@ void	error_add(ErrorContext *ctx, ErrorCategory category, ErrorLevel level,
 	error_add(ctx, ERROR_PARSER, ERROR_LEVEL_WARNING, file, line, col, __VA_ARGS__)
 
 bool	error_has_errors(ErrorContext *ctx);
+bool	error_has_warnings(ErrorContext *ctx);
 bool	error_has_fatal(ErrorContext *ctx);
 void	error_print_all(ErrorContext *ctx);
 

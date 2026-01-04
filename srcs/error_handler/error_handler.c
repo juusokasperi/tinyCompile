@@ -21,7 +21,7 @@ static const char	*level_colors[] = {
 static const char	*level_names[] = {
 	"warning",
 	"error",
-	"fatal error"
+	"fatal"
 };
 
 void	error_context_init(ErrorContext *ctx, Arena *arena)
@@ -69,6 +69,11 @@ void error_add(ErrorContext *ctx, ErrorCategory category, ErrorLevel level,
 		ctx->error_count++;
 }
 
+bool	error_has_warnings(ErrorContext *ctx)
+{
+	return (ctx->warning_count > 0);
+}
+
 bool	error_has_errors(ErrorContext *ctx)
 {
 	return (ctx->error_count > 0);
@@ -91,8 +96,14 @@ void	error_print_all(ErrorContext *ctx)
 	if (!ctx->head)
 		return;
 	fprintf(stderr, "\n");
-	fprintf(stderr, BOLD_WHITE "Compilation failed with %zu error(s) and %zu warning(s)\n" RESET,
-		ctx->error_count, ctx->warning_count);
+	if (ctx->error_count > 0)
+		fprintf(stderr, BOLD_WHITE "Compilation failed with "
+				"%zu error(s) and %zu warning(s)\n" RESET,
+				ctx->error_count, ctx->warning_count);
+	else if (ctx->warning_count > 0)
+		fprintf(stderr, BOLD_WHITE "Compilation succeeded with "
+				"%zu warning(s)\n" RESET, ctx->warning_count);
+
 	fprintf(stderr, "\n");
 
 	ErrorNode	*curr = ctx->head;

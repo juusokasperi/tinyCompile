@@ -100,7 +100,8 @@ int main(int argc, char **argv)
 	}
 
 cleanup:
-	if (error_has_errors(&errors) || error_has_fatal(&errors))
+	if (error_has_errors(&errors) || error_has_fatal(&errors)
+		|| error_has_warnings(&errors))
 		error_print_all(&errors);
 	resource_cleanup_all(&resources);
 	arena_free(&ast_arena);
