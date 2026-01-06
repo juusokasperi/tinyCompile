@@ -15,8 +15,7 @@
 
 X_TYPE(TYPE_VOID,		"void",		0,		false)
 
-// TODO For now int == int64, change to int32 later..
-X_TYPE(TYPE_INT,		"int",		8,		true)
+X_TYPE(TYPE_INT,		"int",		4,		true)
 X_TYPE(TYPE_LONG,		"long",		8,		true)
 
 X_TYPE(TYPE_INT64,		"int64",	8,		true)
