@@ -22,7 +22,7 @@ static inline bool sv_eq_cstr(StringView sv, const char *str)
 	return (strlen(str) == sv.len && memcmp(sv.start, str, sv.len) == 0);
 }
 
-static inline int64_t sv_to_int(Arena *a, StringView sv)
+static inline int64_t sv_to_int64(Arena *a, StringView sv)
 {
 	ArenaTemp temp = arena_temp_begin(a);
 

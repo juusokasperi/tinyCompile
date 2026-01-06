@@ -4,6 +4,7 @@
 #include "compile.h"
 #include "defines.h"
 #include "error_handler.h"
+#include "string_view.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -121,6 +122,74 @@ bool semantic_scope_declare(SemanticAnalyzer *sa, StringView name,
 }
 */
 
+static bool	evaluate_const_expression(Arena *a, ASTNode *node, int64_t *out_val)
+{
+	if (!node)
+		return (false);
+	switch (node->type)
+	{
+		case AST_NUMBER:
+			*out_val = sv_to_int64(a, node->number.value);
+			return (true);
+		case AST_NEGATE:
+		{
+			int64_t val;
+			if (evaluate_const_expression(a, node->unary.operand, &val))
+			{
+				*out_val = -val;
+				return (true);
+			}
+			return (false);
+		}
+		case AST_BIT_NOT:
+		{
+			int64_t val;
+			if (evaluate_const_expression(a, node->unary.operand, &val))
+			{
+				*out_val = ~val;
+				return (true);
+			}
+			return (false);
+		}
+		case AST_ADD:
+		case AST_SUB:
+		case AST_MUL:
+		case AST_DIV:
+		case AST_LSHIFT:
+		case AST_RSHIFT:
+		case AST_BIT_AND:
+		case AST_BIT_OR:
+		case AST_BIT_XOR:
+		{
+			int64_t left;
+			int64_t right;
+			if (evaluate_const_expression(a, node->binary.left, &left)
+					&& evaluate_const_expression(a, node->binary.right, &right))
+			{
+				switch (node->type)
+				{
+					case AST_ADD:	*out_val = left + right; break;
+					case AST_SUB:	*out_val = left - right; break;
+					case AST_MUL:	*out_val = left * right; break;
+					case AST_DIV:
+						if (right == 0) return (false);
+						*out_val = left / right;
+						break;
+					case AST_LSHIFT:	*out_val = left << right; break;
+					case AST_RSHIFT:	*out_val = left >> right; break;
+					case AST_BIT_AND:	*out_val = left & right; break;
+					case AST_BIT_OR:	*out_val = left | right; break;
+					case AST_BIT_XOR:	*out_val = left ^ right; break;
+					default: return (false);
+				}
+				return (true);
+			}
+			return (false);
+		}
+		default: return (false);
+	}
+}
+
 static bool	check_type_compatibility(SemanticAnalyzer *sa, DataType dest, DataType src, ASTNode *node)
 {
 	if (dest == src)
@@ -135,12 +204,34 @@ static bool	check_type_compatibility(SemanticAnalyzer *sa, DataType dest, DataTy
 
 	if (type_is_integer(dest) && type_is_integer(src))
 	{
-		if (type_size(dest) >= type_size(src))
-			return (true);
-		error_add(sa->errors, ERROR_SEMANTIC, ERROR_LEVEL_WARNING, 
-				sa->filename, node->line, node->column, 
-				"implicit conversion from '%s' to '%s' may lose precision",
-				type_name(src), type_name(dest));
+		if (type_size(dest) < type_size(src))
+		{
+			int64_t	const_val;
+			bool	safe_conversion = false;
+
+			if (evaluate_const_expression(sa->arena, node, &const_val))
+			{
+				switch (type_size(dest))
+				{
+					case 1:
+						safe_conversion = (const_val >= CHAR_MIN && const_val <= CHAR_MAX);
+						break;
+					case 2:
+						safe_conversion = (const_val >= SHRT_MIN && const_val <= SHRT_MAX);
+						break;
+					case 4:
+						safe_conversion = (const_val >= INT_MIN && const_val <= INT_MAX);
+						break;
+					default:
+						break;
+				}
+			}
+			if (!safe_conversion)
+				error_add(sa->errors, ERROR_SEMANTIC, ERROR_LEVEL_WARNING, 
+					sa->filename, node->line, node->column, 
+					"implicit conversion from '%s' to '%s' may lose precision",
+					type_name(src), type_name(dest));
+		}
 		return (true);
 	}
 	error_semantic(sa->errors, sa->filename, node->line, node->column,
@@ -156,9 +247,16 @@ static bool analyze_expression(SemanticAnalyzer *sa, ASTNode *node)
 	switch (node->type)
 	{
 		case AST_NUMBER:
-			node->value_type = TYPE_INT64;		// TODO For now all are int64..
-												// Add literal suffixes (L, UL, etc)
+		{
+			int64_t	val = sv_to_int64(sa->arena, node->number.value);
+			if (val >= INT_MIN && val <= INT_MAX)
+				node->value_type = TYPE_INT;
+			else
+				node->value_type = TYPE_INT64;
+			// TODO: In the future, check if the token text ends with
+			// 'L' or 'U' to override this logic. (needs lexer changes)
 			return (true);
+		}
 		case AST_IDENTIFIER:
 		{
 			VarInfo *var = semantic_scope_lookup(sa->current, node->identifier.name);

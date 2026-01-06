@@ -67,7 +67,7 @@ ASTNode	*parse_function(Parser *parser)
 	if (!check(parser, TOKEN_RPAREN))
 	{
 		params = arena_alloc(parser->arena, sizeof(Parameter) * 16);
-		if (check(parser, TOKEN_IDENTIFIER) && sv_eq_cstr(parser->next.text, "void"))
+		if (check(parser, TOKEN_VOID))
 			parser_advance(parser);
 		else
 		{
