@@ -8,6 +8,7 @@
 # include "error_handler.h"
 # include <stdbool.h>
 # include <stddef.h>
+# include <limits.h>
 
 typedef struct CompilationUnit CompilationUnit;
 
