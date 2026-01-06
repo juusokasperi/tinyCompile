@@ -29,6 +29,7 @@ typedef enum {
 } X86Reg;
 
 typedef enum {
+	REX = 0x40,		// REX Base
 	REX_B = 0x41,	// REX prefix with B bit set (extends opcode reg)
 	REX_W = 0x48,	// 64-bit Operand Size
 	REX_WB = 0x49,	// REX.W + REX_B (for R8-R15)
@@ -55,6 +56,7 @@ typedef enum {
 	ALU_TEST = 0x85,
 
 	MOV_RM_R = 0x89,	// Store: Move register to r/m
+	MOV_RM_R8 = 0x88,	// Store 8-bit (move r8 to r/m8)
 	MOV_R_RM = 0x8B,	// Load: Move r/m to register
 	MOV_IMM_R = 0xB8,	// Imm: Mov imm64 to register
 	
@@ -66,6 +68,8 @@ typedef enum {
 	
 	OP_JMP_REL32 = 0xE9,	// JMP rel32
 	OP_PREFIX_0F = 0x0F,	// Prefix for 2-byte opcodes
+	OP_MOVSXD = 0x63,		// Load 32-bit signed (move with sign-extended dword)
+	OP_MOVSX_8 = 0xBE,		// Load 8-bit signed (move with sign-extended byte + 0x prefix)
 	OP_MOVZX = 0xB6,		// MOVZX r64, r/m8 (w/ 0f prefix)
 	OP_LEA = 0x8D,			// Load effective address
 	OP_SHIFT_CL = 0xD3,		// Shift r/m by CL

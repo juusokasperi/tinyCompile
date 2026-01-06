@@ -1,3 +1,4 @@
+#include "ast.h"
 #include "defines.h"
 #include "ir.h"
 #include "jit.h"
@@ -453,13 +454,14 @@ size_t encode_store(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *
 	size_t		src_vreg = inst->src_1;
 	Location	src = get_location(ctx, src_vreg);
 	int32_t		offset = get_local_offset(stack_idx);
+	int			data_size = type_size(inst->type);
 
 	if (src.type == LOC_REG)
-		emit_store_local(&curr, &size, src.reg, offset);
+		emit_store_sized(&curr, &size, src.reg, REG_RBP, offset, data_size);
 	else
 	{
 		load_location_to_reg(&curr, &size, REG_RAX, src);
-		emit_store_local(&curr, &size, REG_RAX, offset);
+		emit_store_sized(&curr, &size, REG_RAX, REG_RBP, offset, data_size);
 	}
 
 	return (size);
@@ -474,12 +476,13 @@ size_t encode_load(uint8_t *buf, size_t *cnt, IRInstruction *inst, JITContext *c
 	size_t		stack_idx = inst->src_1;
 	Location	dest = get_location(ctx, dest_vreg);
 	int32_t		offset = get_local_offset(stack_idx);
+	int			data_size = type_size(inst->type);
 	
 	if (dest.type == LOC_REG)
-		emit_load_param(&curr, &size, dest.reg, offset);
+		emit_load_signext(&curr, &size, dest.reg, REG_RBP, offset, data_size);
 	else
 	{
-		emit_load_param(&curr, &size, REG_RAX, offset);
+		emit_load_signext(&curr, &size, REG_RAX, REG_RBP, offset, data_size);
 		store_reg_to_location(&curr, &size, dest, REG_RAX);
 	}
 	return (size);
