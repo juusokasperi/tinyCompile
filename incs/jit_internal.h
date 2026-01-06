@@ -22,6 +22,8 @@ size_t	emit_comparison_op(uint8_t *buf, IRInstruction *inst, JITContext *ctx,
 							X86Condition condition);
 size_t		emit_shift_op(uint8_t *buf, IRInstruction *inst, JITContext *ctx, 
 							X86Extension extension);
+void	emit_store_sized(uint8_t **buf, size_t *cnt, X86Reg src, X86Reg base, int32_t disp, int size);
+void	emit_load_signext(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg base, int32_t disp, int size);
 
 /* --- Encoder Prototypes (Auto-Generated) --- */
 #define X_OP(opcode, name, fmt, encoder) \

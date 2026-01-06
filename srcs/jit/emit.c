@@ -170,3 +170,51 @@ void	emit_pop(uint8_t **buf, size_t *cnt, X86Reg reg)
 		emit_u8(buf, cnt, REX_B);
 	emit_u8(buf, cnt, OP_POP + (reg & 7));
 }
+
+void	emit_load_signext(uint8_t **buf, size_t *cnt, X86Reg dst, X86Reg base, int32_t disp, int size)
+{
+	uint8_t	rex = REX_W | ((dst >= 8) ? 4 : 0) | ((base >= 8) ? 1 : 0);
+
+	// 8-bit load and 32-bit load signed
+	if (size == 1 || size == 4)
+	{
+		emit_u8(buf, cnt, rex);
+		if (size == 1)
+		{
+			emit_u8(buf, cnt, OP_PREFIX_0F);
+			emit_u8(buf, cnt, OP_MOVSX_8);
+		}
+		else
+			emit_u8(buf, cnt, OP_MOVSXD);
+		emit_u8(buf, cnt, MOD_MEM_DISP32 | ((dst & 7) << 3) | (base & 7));
+		emit_u32(buf, cnt, disp);
+	}
+	else
+		emit_load_param(buf, cnt, dst, disp);
+}
+
+void	emit_store_sized(uint8_t **buf, size_t *cnt, X86Reg src, X86Reg base, int32_t disp, int size)
+{
+	uint8_t	rex;
+	// 8-bit Store (MOV r/m8, r8) -> 88 /r
+    if (size == 1)
+    {
+        rex = REX | ((src >= 8) ? 4 : 0) | ((base >= 8) ? 1 : 0);
+        emit_u8(buf, cnt, rex);
+        emit_u8(buf, cnt, MOV_RM_R8);
+        emit_u8(buf, cnt, MOD_MEM_DISP32 | ((src & 7) << 3) | (base & 7));
+        emit_u32(buf, cnt, disp);
+    }
+    // 32-bit Store (MOV r/m32, r32) -> 89 /r
+    else if (size == 4)
+    {
+        rex = ((src >= 8) ? 4 : 0) | ((base >= 8) ? 1 : 0);
+        if (rex)
+			emit_u8(buf, cnt, 0x40 | rex);
+        emit_u8(buf, cnt, MOV_RM_R);
+        emit_u8(buf, cnt, MOD_MEM_DISP32 | ((src & 7) << 3) | (base & 7));
+        emit_u32(buf, cnt, disp);
+    }
+    else
+        emit_store_local(buf, cnt, src, disp);
+}
