@@ -38,7 +38,7 @@ static size_t gen_number(Arena *a, IRFunction *f, ASTNode *node)
 	if (!ir_alloc_vreg(f, &reg))
 		return (0);
 
-	int64_t val = sv_to_int(a, node->number.value);
+	int64_t val = sv_to_int64(a, node->number.value);
 	IRInstruction inst = { 
 		.opcode = IR_CONST, 
 		.type = node->value_type,
